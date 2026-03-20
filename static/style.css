@@ -1,0 +1,221 @@
+body {
+  padding: 0;
+  margin: 0;
+}
+html,
+body,
+#mapid {
+  height: 100%;
+  width: 100vw;
+}
+
+@media print {
+  .leaflet-control-zoom, .leaflet-sidebar {
+    display: none !important;
+  }
+}
+
+.pixelated {
+  image-rendering: optimizeSpeed; /* Legal fallback */
+  image-rendering: -moz-crisp-edges; /* Firefox */
+  image-rendering: -o-crisp-edges; /* Opera */
+  image-rendering: -webkit-optimize-contrast; /* Safari */
+  image-rendering: optimize-contrast; /* CSS3 Proposed */
+  image-rendering: crisp-edges; /* CSS4 Proposed */
+  image-rendering: pixelated; /* CSS4 Proposed */
+  -ms-interpolation-mode: nearest-neighbor; /* IE8+ */
+}
+
+.leaflet-tile-loaded {
+  /* work around Safari bug https://stackoverflow.com/a/28640880 */
+  -webkit-mask-image: -webkit-linear-gradient(top, #ffffff 0%, #ffffff 100%);
+}
+
+.leaflet-sidebar-content {
+  /* override leaflet-sidebar.min.css */
+  background-color:rgba(255,255,255,.8);
+}
+
+.infinite-background-layer {
+  height: var(--h);
+  width: 100vw;
+  background-repeat: repeat;
+  -webkit-transition: background-size 0.25s cubic-bezier(0, 0, 0.25, 1);
+  -moz-transition: background-size 0.25s cubic-bezier(0, 0, 0.25, 1);
+  transition: background-size 0.25s cubic-bezier(0, 0, 0.25, 1);
+}
+
+.gridLabelLayer {
+  display: inline-block;
+  padding: 0.3em;
+  border-radius: 0.75em;
+  background-color: rgba(255, 255, 255, 0.5);
+}
+
+button {
+  font-size: 0.75rem;
+}
+
+.tooltip {
+  position: relative;
+  display: inline-block;
+  border-bottom: 1px dotted black;
+}
+.tooltip .tooltip-text {
+  visibility: hidden;
+  width: 240px;
+  background-color: black;
+  color: #fff;
+  text-align: center;
+  padding: 5px 0;
+  border-radius: 6px;
+  position: absolute;
+  z-index: 1;
+  top: 100%;
+  left: 50%;
+  margin-left: -60px;
+}
+.tooltip:hover .tooltip-text {
+  visibility: visible;
+}
+
+.leaflet-sidebar-icon {
+  margin: 6px;
+}
+.fa-caret-left:before {
+  content: "◄";
+}
+
+.dimension-switch {
+  margin-bottom: 10px;
+}
+.dimension-radio {
+  display: inline-block;
+}
+
+.coord-marker {
+  filter: hue-rotate(130deg);
+}
+#locate-current-coords {
+  margin-bottom: 10px;
+}
+#locate-go-home {
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+#locate-marker-div {
+  margin-top: 10px;
+}
+#locate-grid {
+  margin-top: 10px;
+}
+.locate-close-button {
+  margin-bottom: 5px;
+}
+.locate-button-container {
+  margin-top: 5px;
+}
+
+.road-closed {
+  stroke-dasharray: 1 5;
+}
+
+.layers-layerlist {
+  display: flex;
+}
+.layers-layerlist-label {
+  flex: 1;
+}
+#layers-details {
+  margin-top: 10px;
+}
+.layers-details-title {
+  margin-bottom: 10px;
+}
+.layers-eye, .layers-details-marker {
+  cursor: pointer;
+}
+.layers-details-marker:hover {
+  background-color: #999;
+}
+details {
+  margin-left: 1em;
+}
+#timeline-contents {
+  display: flex;
+  flex-direction: column;
+  height: calc(var(--h) - 60px);
+}
+@media (min-width:768px) {
+  #timeline-contents {
+    height: calc(var(--h) - 80px);
+  }
+}
+#timeline-switch {
+  margin-bottom: 10px;
+}
+#timeline-radio {
+  flex: 1;
+  overflow-y: auto;
+}
+#timeline-bottom {
+  display: flex;
+  flex-flow: row wrap;
+  margin-top: 10px;
+}
+#timeline-button-left {
+  width: 30px;
+  text-align: left;
+  }
+#timeline-current {
+  width: calc(100% - 60px);
+  text-align: center;
+}
+#timeline-button-right {
+  width: 30px;
+  text-align: right;
+}
+.timeline-details-summary {
+  font-size: 1rem;
+}
+.timeline-details-summary img {
+  position: relative;
+  top: 3px;
+  margin-left: 1px;
+  margin-right: 1px;
+}
+.timeline-vod-div {
+  background-color: rgba(204, 170, 255, 0.4);
+  padding-left: 8px;
+  margin-top: 2.5px;
+  margin-bottom: 2.5px;
+  border-radius: 5px;
+}
+.timeline-vod-div img {
+  position: relative;
+  top: 2px;
+  left: -1px;
+}
+
+#permalink-text {
+  margin-top: 10px;
+  width: 100%;
+}
+#permalink-copy-status {
+  color: green;
+  visibility: hidden;
+}
+#permalink-copy-status.animating {
+  visibility: visible;
+}
+@keyframes fadeOut {
+  0% {
+    opacity:1;
+  }
+  100% {
+    opacity:0;
+  }
+}
+.fade-out-500 {
+  animation: fadeOut ease 0.5s;
+}

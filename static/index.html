@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ja-jp">
+
+<head>
+  <link rel="stylesheet" href="./leaflet.css" />
+  <script src="./leaflet.js"></script>
+  <script src="./leaflet.tilelayer.fallback.js"></script>
+  <link rel="stylesheet" href="./leaflet-sidebar.min.css" />
+  <script src="./leaflet-sidebar.min.js"></script>
+  <link rel="stylesheet" href="./style.css" />
+  <script src="./map.js"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta property="og:title" content="***OG_TITLE***" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="***OG_URL***" />
+  <meta property="og:image" content="***OG_IMAGE***" />
+  <meta property="og:description" content="***OG_DESCRIPTION***" />
+  <meta property="og:locale" content="***OG_LOCALE***" />
+  <title>***TITLE***</title>
+</head>
+
+<body>
+  <div id="mapid"></div>
+
+  <div id="sidebar" class="leaflet-sidebar collapsed">
+    <!-- Nav tabs -->
+    <div class="leaflet-sidebar-tabs">
+      <ul role="tablist">
+        <!-- top aligned tabs -->
+        <li><a href="#locate" role="tab"><img src="icons/address-location.svg" class="leaflet-sidebar-icon"></a></li>
+        <li><a href="#layers" role="tab"><img src="icons/multiple-layers.svg" class="leaflet-sidebar-icon"></a></li>
+        <li><a href="#timeline" role="tab"><img src="icons/history.svg" class="leaflet-sidebar-icon"></a></li>
+      </ul>
+      <ul role="tablist">
+        <!-- bottom aligned tabs -->
+        <li><a href="#link" role="tab"><img src="icons/hyperlink.svg" class="leaflet-sidebar-icon"></a></li>
+        <li><a href="#info" role="tab"><img src="icons/more-info.svg" class="leaflet-sidebar-icon"></a></li>
+      </ul>
+    </div>
+    <!-- Tab panes -->
+    <div class="leaflet-sidebar-content">
+      <div class="leaflet-sidebar-pane" id="locate">
+        <h1 class="leaflet-sidebar-header">
+          座標ツール
+          <div class="leaflet-sidebar-close"><i class="fa fa-caret-left"></i></div>
+        </h1>
+        <div class="dimension-switch">
+          <span class="dimension-radio"><input type="radio" name="locate-dimension" id="locate-dimension-overworld" value="o">
+          <label for="locate-dimension-overworld">オーバーワールド</label></span>
+          <span class="dimension-radio"><input type="radio" name="locate-dimension" id="locate-dimension-nether" value="n">
+          <label for="locate-dimension-nether">ネザー</label></span>
+          <span class="dimension-radio"><input type="radio" name="locate-dimension" id="locate-dimension-end" value="e">
+          <label for="locate-dimension-end">エンド</label></span>
+        </div>
+        <div id="locate-current-coords"></div>
+        <div id="locate-center-tool"></div>
+        <div><button id="locate-go-home">🏠 デフォルトビュー</button></div>
+        <div>
+          <input type="checkbox" id="coord-checkbox">
+          <label for="coord-checkbox">地図をクリックすると、マーカーを置きます</label><br>
+        </div>
+        <div id="locate-marker-div"></div>
+        <div id="locate-grid">
+          <input type="checkbox" id="grid-checkbox">
+          <label for="grid-checkbox"><span class="tooltip">タイル座標<span class="tooltip-text">当サイトに使用された地図はマインクラフト内でこのような名前を付けられています</span></span>を表示します</label>
+        </div>
+      </div>
+      <div class="leaflet-sidebar-pane" id="layers">
+        <h1 class="leaflet-sidebar-header">
+          レイヤー
+          <div class="leaflet-sidebar-close"><i class="fa fa-caret-left"></i></div>
+        </h1>
+        <div class="dimension-switch">
+          <span class="dimension-radio"><input type="radio" name="layers-dimension" id="layers-dimension-overworld" value="o">
+          <label for="layers-dimension-overworld">オーバーワールド</label></span>
+          <span class="dimension-radio"><input type="radio" name="layers-dimension" id="layers-dimension-nether" value="n">
+          <label for="layers-dimension-nether">ネザー</label></span>
+          <span class="dimension-radio"><input type="radio" name="layers-dimension" id="layers-dimension-end" value="e">
+          <label for="layers-dimension-end">エンド</label></span>
+        </div>
+        <div class="sidebar-select" id="layers-select"></div>
+        <div class="sidebar-details" id="layers-details">
+          上の🔎をクリックすると、そのレイヤーにあるマーカーの一覧が表示されます
+        </div>
+      </div>
+      <div class="leaflet-sidebar-pane" id="timeline">
+        <h1 class="leaflet-sidebar-header">
+          タイムライン
+          <div class="leaflet-sidebar-close"><i class="fa fa-caret-left"></i></div>
+        </h1>
+        <div id="timeline-contents">
+          <div id="timeline-switch">
+            <input type="checkbox" id="timeline-checkbox-exact">
+            <label for="timeline-checkbox-exact">
+              選択した日時のタイルのみを表示します
+            </label><br>
+            <input type="checkbox" id="timeline-checkbox-after">
+            <label id="timeline-checkbox-after-label" for="timeline-checkbox-after">
+              欠落したタイルを選択した日時以降のタイルに置き換えます
+            </label>
+          </div>
+          <div id="timeline-radio"></div>
+          <div id="timeline-bottom">
+            <button id="timeline-button-left">◀</button>
+            <div id="timeline-current"></div>
+            <button id="timeline-button-right">▶</button>
+          </div>
+        </div>
+      </div>
+      <div class="leaflet-sidebar-pane" id="link">
+        <h1 class="leaflet-sidebar-header">
+          パーマリンク
+          <div class="leaflet-sidebar-close"><i class="fa fa-caret-left"></i></div>
+        </h1>
+        <input type="checkbox" id="permalink-checkbox-date">
+        <label for="permalink-checkbox-date">パーマリンクでタイムラインに選択した日時を保存します</label>
+        <input type="text" id="permalink-text" readonly="readonly">
+        <button id="permalink-button">コピー</button>
+        <span id="permalink-copy-status">URLがクリップボードにコピーされました！</span>
+      </div>
+      <div class="leaflet-sidebar-pane" id="info">
+        <h1 class="leaflet-sidebar-header">
+          ***ABOUT_TITLE***
+          <div class="leaflet-sidebar-close"><i class="fa fa-caret-left"></i></div>
+        </h1>
+        <div>
+          ***ABOUT_HTML***
+          <div>
+            当サイトでは、以下のオーペンソースライブラリを使用しています：
+            <ul>
+              <li>
+                <a href="https://leafletjs.com">LeafletJS</a>
+              </li>
+              <li>
+                <a href="https://github.com/ghybs/Leaflet.TileLayer.Fallback">Leaflet.TileLayer.Fallback</a>
+              </li>
+              <li>
+                <a href="https://github.com/noerw/leaflet-sidebar-v2">leaflet-sidebar-v2</a>
+              </li>
+            </ul>
+          </div>
+          <div>
+            このサイドバーで使用されているアイコンは<a href="https://uxwing.com">uxwing</a>のもので、その<a
+              href="https://uxwing.com/license/">ライセンス条項</a>の下で使用されています。
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    init("mapid");
+  </script>
+</body>
+
+</html>

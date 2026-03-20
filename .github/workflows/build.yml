@@ -1,0 +1,62 @@
+name: Build and Deploy
+
+on:
+  workflow_call:
+    inputs:
+      engine_repo:
+        description: 'Engine repository to use (override for forks)'
+        default: 'oatmeal/my-chizu'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+
+    steps:
+      - name: Checkout data repo
+        uses: actions/checkout@v4
+        with:
+          path: data-repo
+
+      - name: Checkout engine repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.engine_repo }}
+          ref: main
+          path: engine
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: engine/package-lock.json
+
+      - name: Install engine dependencies
+        run: npm ci
+        working-directory: engine
+
+      - name: Build
+        run: node engine/build.mjs ${{ github.workspace }}/data-repo
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: data-repo/deploy
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,79 @@
+`hashObj`:
+  - `d` (current dimension)
+  - `dD` (dimension dict) {for each dimension}
+    - `c` (coords)
+      - `X`
+      - `Z`
+      - `z` (zoom)
+    - `v` (visible layers)
+    - `h` (timeline)
+      - `d` (date)
+      - `f` (fill)
+      - `e` (exact)
+
+`myMap`:
+  - `dim`
+  - `dimCache` {for each dimension}:
+    - (data loaded from `data/[dim].json`)
+      - `X0`
+      - `Z0`
+      - `defaultX`
+      - `defaultZ`
+      - `defaultZoom`
+      - `minZoom`
+      - `maxZoom`
+      - `minNativeZoom`
+      - `maxNativeZoom`
+      - `minX`
+      - `maxX`
+      - `minZ`
+      - `maxZ`
+      - `dates`
+      - `fileDates` {for each key}: array of dates
+      - `layers` [for each layer]:
+        - `id`
+        - `name`
+        - `url`
+        - `fraction` (HACK for layer coloring, added by loadTileData)
+      - `tilePath`
+      - `errorTileUrl`
+      - `tileSize`
+    - `visibleLayers`: `new Set(visibleLayers)`
+    - `timeline` (timeline)
+      - `date` (date)
+      - `fill` (fill)
+      - `exact` (exact)
+      - `dateCache` {for each date}
+        - data loaded from JSON files in `data/[dim]/[date]-[mode].json`:
+          - `tileReplacements` {for each tile key}:
+            - `key`
+            - `scale`
+            - `pos_x`
+            - `pos_z`
+            - `date`
+          - `skip` {for any skippable tile key}
+  - `layerCache` {for each layerId}
+    - `check` (HTML element)
+    - `url`
+    - `data` (loaded from `data/[dim]/[layer].json`)
+      - `id`
+      - `name`
+      - `dimension`
+      - `markers` [for each marker]
+        - `name`
+        - `pos`
+      - `lines` [for each polyline]
+        - `name` (optional)
+        - `pts` [array of coordinate triples]
+        - ... (other options supported by [Leaflet's polyline method]( https://leafletjs.com/reference.html#polyline) can be included as well)
+    - `dataLayer` (leaflet layer object)
+  - `sidebar`
+    - `timelineControl`
+      - `init`
+      - ...
+    - `layerControl`
+      - `init`
+      - ...
+    - `coordsControl`
+      - `init`
+      - ...

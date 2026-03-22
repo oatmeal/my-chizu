@@ -1,5 +1,13 @@
 # Remaining Improvements
 
+## Bugs
+
+- In the timeline view, using the keyboard up/down to navigate between radio options skips the items that are inside collapsed `<details>` blocks. If modifying this requires Javascript to intercept keyboard events then it's probably not worth changing.
+
+## Features
+
+- Add a feature to display screenshots pinned at where they were taken (possibly with a small arrow to display direction?). What metadata to include with screenshots? (e.g. who is present in the screenshot) Open question: how to interact with the timeline?
+
 ## Robustness
 
 - **No error handling on `fetch` calls** — 5 bare `await (await fetch(url)).json()` calls across `map.js`, `setupLayers.js`, `setupTimeline.js`. A network error or malformed JSON crashes the app with no user feedback.

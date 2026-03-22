@@ -325,3 +325,8 @@ for (const dimension of ["overworld", "nether", "end"]) {
     stringify(dimDict)
   );
 }
+
+// Copy tile images from data repo into deploy/
+await fsPromises.cp(join(dataDir, "tiles"), join(deployDir, "tiles"), {
+  recursive: true,
+});

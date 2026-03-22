@@ -159,8 +159,8 @@ for (const dim of [DIM_OVERWORLD, DIM_NETHER, DIM_END]) {
           let XMarker = d[0];
           let ZMarker = d[2];
           if (dimension === "nether") {
-            XMarker *= 8;
-            ZMarker *= 8;
+            XMarker *= NETHER_SCALE;
+            ZMarker *= NETHER_SCALE;
           }
           if (XMarker < minX) minX = XMarker;
           if (XMarker > maxX) maxX = XMarker;

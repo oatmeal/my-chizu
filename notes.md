@@ -67,13 +67,7 @@
         - `pts` [array of coordinate triples]
         - ... (other options supported by [Leaflet's polyline method]( https://leafletjs.com/reference.html#polyline) can be included as well)
     - `dataLayer` (leaflet layer object)
-  - `sidebar`
-    - `timelineControl`
-      - `init`
-      - ...
-    - `layerControl`
-      - `init`
-      - ...
-    - `coordsControl`
-      - `init`
-      - ...
+  - `sidebar` (leaflet-sidebar-v2 control)
+  - Panel modules listen for Leaflet events fired by `changeDim()`:
+    - `dimchange` — fired early, used by `setupLayerPanel` and `setupTimelinePanel` to populate caches
+    - `dimviewready` — fired after `setView()`, used by `setupCoordinatePanel` (needs `getCenter()`)

@@ -1,0 +1,12 @@
+{
+  "title": "Test Map",
+  "og": {
+    "title": "Test OG",
+    "url": "https://example.com",
+    "image": "https://example.com/og.png",
+    "description": "Test description",
+    "locale": "en_US"
+  },
+  "aboutTitle": "About Test",
+  "aboutHtml": "<p>Test</p>"
+}

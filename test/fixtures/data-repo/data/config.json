@@ -1,0 +1,34 @@
+{
+  "dimensions": {
+    "overworld": {
+      "X0": 0,
+      "Z0": 0,
+      "defaultX": 0,
+      "defaultZ": 0,
+      "defaultZoom": 4,
+      "tilePath": "tiles/overworld",
+      "errorTileUrl": "tiles/overworld.png",
+      "tileSize": 256
+    },
+    "nether": {
+      "X0": 0,
+      "Z0": 0,
+      "defaultX": 0,
+      "defaultZ": 0,
+      "defaultZoom": 1,
+      "tilePath": "tiles/overworld",
+      "errorTileUrl": "tiles/nether.png",
+      "tileSize": 256
+    },
+    "end": {
+      "X0": 0,
+      "Z0": 0,
+      "defaultX": 0,
+      "defaultZ": 0,
+      "defaultZoom": 4,
+      "tilePath": "tiles/end",
+      "errorTileUrl": "tiles/end.png",
+      "tileSize": 256
+    }
+  }
+}

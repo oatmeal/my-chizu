@@ -1,0 +1,8 @@
+{
+  "id": 1,
+  "name": "Spawn",
+  "dimension": "overworld",
+  "markers": [
+    { "name": "Spawn Point", "pos": [0, 64, 0] }
+  ]
+}

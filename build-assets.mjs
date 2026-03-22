@@ -57,31 +57,33 @@ try {
 }
 
 // Copy Leaflet and plugin dependencies from engine's node_modules
-fsPromises.cp(
-  join(engineDir, "node_modules/leaflet/dist/leaflet.js"),
-  join(deployDir, "leaflet.js")
-);
-fsPromises.cp(
-  join(engineDir, "node_modules/leaflet/dist/leaflet.css"),
-  join(deployDir, "leaflet.css")
-);
-fsPromises.cp(
-  join(engineDir, "node_modules/leaflet/dist/images/"),
-  join(deployDir, "images"),
-  { recursive: true }
-);
-fsPromises.cp(
-  join(engineDir, "node_modules/leaflet.tilelayer.fallback/dist/leaflet.tilelayer.fallback.js"),
-  join(deployDir, "leaflet.tilelayer.fallback.js")
-);
-fsPromises.cp(
-  join(engineDir, "node_modules/leaflet-sidebar-v2/css/leaflet-sidebar.min.css"),
-  join(deployDir, "leaflet-sidebar.min.css")
-);
-fsPromises.cp(
-  join(engineDir, "node_modules/leaflet-sidebar-v2/js/leaflet-sidebar.min.js"),
-  join(deployDir, "leaflet-sidebar.min.js")
-);
+await Promise.all([
+  fsPromises.cp(
+    join(engineDir, "node_modules/leaflet/dist/leaflet.js"),
+    join(deployDir, "leaflet.js")
+  ),
+  fsPromises.cp(
+    join(engineDir, "node_modules/leaflet/dist/leaflet.css"),
+    join(deployDir, "leaflet.css")
+  ),
+  fsPromises.cp(
+    join(engineDir, "node_modules/leaflet/dist/images/"),
+    join(deployDir, "images"),
+    { recursive: true }
+  ),
+  fsPromises.cp(
+    join(engineDir, "node_modules/leaflet.tilelayer.fallback/dist/leaflet.tilelayer.fallback.js"),
+    join(deployDir, "leaflet.tilelayer.fallback.js")
+  ),
+  fsPromises.cp(
+    join(engineDir, "node_modules/leaflet-sidebar-v2/css/leaflet-sidebar.min.css"),
+    join(deployDir, "leaflet-sidebar.min.css")
+  ),
+  fsPromises.cp(
+    join(engineDir, "node_modules/leaflet-sidebar-v2/js/leaflet-sidebar.min.js"),
+    join(deployDir, "leaflet-sidebar.min.js")
+  ),
+]);
 
 async function buildMapJs() {
   // Bundle lib/map.js (and its imports) into a single IIFE using Vite

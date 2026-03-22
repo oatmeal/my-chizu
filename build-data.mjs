@@ -22,7 +22,7 @@ async function minifyDatesJson() {
   const datesJson = JSON.parse(
     await fsPromises.readFile(join(dataDir, "data/dates.json"), "utf-8")
   );
-  fsPromises.writeFile(
+  await fsPromises.writeFile(
     join(deployDir, "data/dates.json"),
     stringify(datesJson)
   );
@@ -32,11 +32,13 @@ async function minifyVodsJson() {
   const vodsJson = JSON.parse(
     await fsPromises.readFile(join(dataDir, "data/vods.json"), "utf-8")
   );
-  fsPromises.writeFile(join(deployDir, "data/vods.json"), stringify(vodsJson));
+  await fsPromises.writeFile(
+    join(deployDir, "data/vods.json"),
+    stringify(vodsJson)
+  );
 }
 
-minifyDatesJson();
-minifyVodsJson();
+await Promise.all([minifyDatesJson(), minifyVodsJson()]);
 
 const layerIds = {};
 
@@ -160,7 +162,7 @@ for (const dimension of ["overworld", "nether", "end"]) {
     }
 
     // write minified JSON
-    fsPromises.writeFile(
+    await fsPromises.writeFile(
       join(deployDir, "data", dimension, fnName),
       stringify(over)
     );
@@ -260,7 +262,7 @@ for (const dimension of ["overworld", "nether", "end"]) {
       for (const a of Object.values(tileReplacementsDict)) {
         a.sort();
       }
-      fsPromises.writeFile(
+      await fsPromises.writeFile(
         join(deployDir, "data", dimension, `${date}-${mode}.json`),
         stringify({
           tileReplacements: tileReplacementsDict,
@@ -300,7 +302,7 @@ for (const dimension of ["overworld", "nether", "end"]) {
     tileSize,
     ratio: Math.floor(Math.pow(2, 11 - (minZoom - 4)) / tileSize),
   };
-  fsPromises.writeFile(
+  await fsPromises.writeFile(
     join(deployDir, "data", `${dimension}.json`),
     stringify(dimDict)
   );

@@ -11,6 +11,7 @@
   "devDependencies": {
     "fast-glob": "^3.2.11",
     "fast-json-stable-stringify": "^2.1.0",
+    "jsdom": "^29.0.1",
     "vite": "^8.0.1",
     "vitest": "^4.1.0"
   },

@@ -6,6 +6,14 @@ import fg from "fast-glob";
 import stringify from "fast-json-stable-stringify";
 import { join, resolve } from "path";
 import { selectTileDate } from "./lib/tileDate.js";
+import {
+  DIM_OVERWORLD,
+  DIM_NETHER,
+  DIM_END,
+  DIM_NAMES,
+  NETHER_SCALE,
+  dimTilePath,
+} from "./lib/dimensions.js";
 
 function mod(a, b) {
   return ((a % b) + b) % b;
@@ -42,7 +50,8 @@ await Promise.all([minifyDatesJson(), minifyVodsJson()]);
 
 const layerIds = {};
 
-for (const dimension of ["overworld", "nether", "end"]) {
+for (const dim of [DIM_OVERWORLD, DIM_NETHER, DIM_END]) {
+  const dimension = DIM_NAMES[dim];
   // Minecraft coords of upper right-hand corner of the zoom level 4 tile designated as [0, 0]
   const {
     X0,
@@ -68,15 +77,15 @@ for (const dimension of ["overworld", "nether", "end"]) {
   let minZ = 1e8;
   let maxZ = -1e8;
   const fileCoordsDict = new Set();
-  const dimTilePath = dimension === "end" ? "end" : "overworld";
+  const tileDirName = dimTilePath(dim);
   for (const fn of await fg(
-    join(dataDir, "tiles", dimTilePath, "**/*.png").replaceAll("\\", "/")
+    join(dataDir, "tiles", tileDirName, "**/*.png").replaceAll("\\", "/")
   )) {
     const fp = fn.split("/");
     if (fp.length >= 6) {
       // take last 5 segments: dim/zoom/x/z/date.png
       const [, zoom_s, x_s, z_s, datePng] = fp.slice(-5);
-      if (dimension !== "nether") {
+      if (dim !== DIM_NETHER) {
         const key = [zoom_s, x_s, z_s].join("/");
         const date = datePng.slice(0, -4);
         fileCoordsDict.add(key);
@@ -132,9 +141,9 @@ for (const dimension of ["overworld", "nether", "end"]) {
       for (const d of over.markers) {
         let XMarker = d.pos[0];
         let ZMarker = d.pos[2];
-        if (dimension === "nether") {
-          XMarker *= 8;
-          ZMarker *= 8;
+        if (dim === DIM_NETHER) {
+          XMarker *= NETHER_SCALE;
+          ZMarker *= NETHER_SCALE;
         }
         if (XMarker < minX) minX = XMarker;
         if (XMarker > maxX) maxX = XMarker;
@@ -274,7 +283,7 @@ for (const dimension of ["overworld", "nether", "end"]) {
 
   const maxWidth = Math.pow(
     2,
-    11 - minZoom + 4 + (dimension === "nether" ? 3 : 0)
+    11 - minZoom + 4 + (dim === DIM_NETHER ? 3 : 0)
   );
   const sortedDates = [...dates];
   sortedDates.sort();

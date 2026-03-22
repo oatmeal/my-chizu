@@ -9,9 +9,10 @@ Reference implementation / primary data repo: https://github.com/oatmeal/llmr
 ## Tech Stack
 
 - **Leaflet.js** (v1.9.2) — map rendering
-- **Vanilla JavaScript** — no framework; single-file monolith at `lib/map.js`
+- **Vanilla JavaScript** — no framework; ES modules in `lib/`
 - **Node.js 16+ / npm 7+** — build tooling only
-- **Terser** — JS minification
+- **Vite** — JS bundling (IIFE) and minification
+- **Vitest** — unit testing
 - **GitHub Pages** — deployment target
 
 ## Local Build
@@ -22,17 +23,25 @@ node build.mjs /path/to/data-repo            # build into data-repo/deploy/
 python -m http.server --directory /path/to/data-repo/deploy
 ```
 
-No automated test suite — manual browser testing only.
+```bash
+npm test                                     # run unit tests (vitest)
+```
 
 ## Project Structure
 
 ```
-lib/map.js             # All application logic (~53KB, single file)
+lib/
+  map.js               # Main application logic — wires together the modules below
+  hash.js              # URL hash parsing (pure, tested)
+  tileDate.js          # Tile date selection for exact/fill/before modes (pure, tested)
+  timeline.js          # Date formatting and timeline group summary (pure, tested)
+  *.test.js            # Vitest unit tests alongside each module
 static/                # HTML template, CSS, icons, Twitch branding
   index.html           # Contains ***TOKEN*** placeholders for site-specific content
 build-assets.mjs       # Creates deploy/ skeleton: static files, Leaflet deps, map.js
 build-data.mjs         # Processes tiles and data from data repo → deploy/data/
 build.mjs              # Local dev entry point: node build.mjs /path/to/data-repo
+vite.config.js         # Vite/Vitest configuration
 .github/workflows/
   build.yml            # Reusable GHA workflow: build + deploy to GitHub Pages
 notes.md               # Internal data structure documentation
@@ -116,4 +125,6 @@ jobs:
 - ES6+ (async/await, arrow functions, destructuring)
 - All UI text is in Japanese
 - Leaflet API extensions used extensively (custom `L.Layer`, projections)
-- Prefer editing `lib/map.js` directly; avoid splitting into multiple files
+- Pure logic should be extracted into separate `lib/*.js` modules with tests
+- `lib/map.js` is the entry point that wires together modules and Leaflet
+- Vite bundles all modules into a single IIFE for deployment

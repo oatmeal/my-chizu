@@ -5,6 +5,7 @@ import fsPromises from "fs/promises";
 import fg from "fast-glob";
 import stringify from "fast-json-stable-stringify";
 import { join, resolve } from "path";
+import { selectTileDate } from "./lib/tileDate.js";
 
 function mod(a, b) {
   return ((a % b) + b) % b;
@@ -183,30 +184,9 @@ for (const dimension of ["overworld", "nether", "end"]) {
         if (mode === "e" && !keyDates.includes(date)) continue;
         // keyDates is sorted, so keyDates[0] should be the min
         if (mode === "b" && date < keyDates[0]) continue;
-        // calculate date to use
-        // relevant snippet of `lib/map.js`:
-        // const date = timeline.exact
-        // ? timeline.date
-        // : timeline.fill
-        // ? tileDates.find(
-        //     (_e, i, t) => i === t.length - 1 || t[i + 1] > timeline.date
-        //   )
-        // : tileDates.find(
-        //     (e, i, t) =>
-        //       e <= timeline.date &&
-        //       (i === t.length - 1 || t[i + 1] > timeline.date)
-        //   );
+        // calculate date to use (shared logic with lib/map.js)
         const childDate =
-          mode === "e"
-            ? date
-            : mode === "f"
-            ? keyDates.find(
-                (_e, i, t) => i === t.length - 1 || t[i + 1] > date
-              )
-            : keyDates.find(
-                (e, i, t) =>
-                  e <= date && (i === t.length - 1 || t[i + 1] > date)
-              );
+          mode === "e" ? date : selectTileDate(keyDates, date, mode);
         if (childDate === undefined) continue;
         const [z, tx, tz] = key.split("/").map((i) => Number.parseInt(i));
         let ptx = tx;

@@ -5,7 +5,7 @@
 import { promisify } from "util";
 import { exec } from "child_process";
 import fsPromises from "fs/promises";
-import { minify } from "terser";
+import { build } from "vite";
 import { dirname, join, resolve } from "path";
 import { fileURLToPath } from "url";
 
@@ -83,12 +83,23 @@ fsPromises.cp(
   join(deployDir, "leaflet-sidebar.min.js")
 );
 
-async function minifyMapJs() {
-  const mapJs = await fsPromises.readFile(
-    join(engineDir, "lib/map.js"),
-    "utf-8"
-  );
-  const minified = (await minify(mapJs)).code;
+async function buildMapJs() {
+  // Bundle lib/map.js (and its imports) into a single IIFE using Vite
+  const result = await build({
+    configFile: false,
+    root: engineDir,
+    build: {
+      lib: {
+        entry: join(engineDir, "lib/map.js"),
+        formats: ["iife"],
+        name: "_unused",
+      },
+      write: false,
+      minify: true,
+    },
+    logLevel: "warn",
+  });
+  const minified = result[0].output[0].code;
   // get last commit time from the data repo
   const gitlog = (
     await exec_promise(`git -C "${dataDir}" log -1 --format=%cd`)
@@ -102,4 +113,4 @@ async function minifyMapJs() {
   );
 }
 
-await minifyMapJs();
+await buildMapJs();

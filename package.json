@@ -11,7 +11,6 @@
   "devDependencies": {
     "fast-glob": "^3.2.11",
     "fast-json-stable-stringify": "^2.1.0",
-    "terser": "^5.12.1",
     "vite": "^8.0.1",
     "vitest": "^4.1.0"
   },

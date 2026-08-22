@@ -14,7 +14,7 @@ Your repo needs:
 data/
   config.json    # per-dimension spatial config
   dates.json     # YYYYMMDD → display label
-  vods.json      # [{id, date, title}] — optional VOD links
+  vods.json      # [{id, date, title}] — optional VOD links (YouTube video ids)
   overworld/     # layer JSON files
   nether/
   end/
@@ -24,6 +24,34 @@ site.json        # site identity (title, OG tags, about page)
 ```
 
 See [oatmeal/llmr](https://github.com/oatmeal/llmr) for a reference example.
+
+### 1a. Optional: link stream VODs from the timeline
+
+Entries in `data/vods.json` show up in the timeline as links to the stream a
+snapshot came from. You can maintain that file by hand, or point the engine at
+your YouTube playlists and let it sync:
+
+```jsonc
+// site.json
+"vods": {
+  "playlists": ["https://www.youtube.com/playlist?list=..."],
+  "extraVideos": ["videoId"]        // streams outside those playlists
+}
+```
+
+```bash
+node scripts/sync-vods.mjs /path/to/your-data-repo          # dry run
+node scripts/sync-vods.mjs /path/to/your-data-repo --write  # apply
+```
+
+This needs [yt-dlp](https://github.com/yt-dlp/yt-dlp) on your PATH. It only ever
+appends videos it hasn't seen before, so any titles or dates you fix by hand
+stay fixed. Dates are read from a `YYYY年M月D日` substring in the video title
+where present, otherwise from the video's YouTube release date.
+
+Titles are stripped of genre tags and the redundant date. To tune that for your
+channel, add its boilerplate words under `vods.titleCleanup.vocab`, and give any
+title the rules can't salvage a replacement under `vods.titleCleanup.overrides`.
 
 ### 2. Add a GitHub Actions workflow
 

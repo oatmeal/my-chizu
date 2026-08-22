@@ -27,9 +27,44 @@ python -m http.server --directory /path/to/data-repo/deploy
 npm test                                     # run unit tests (vitest)
 ```
 
+## Syncing VODs
+
+`scripts/sync-vods.mjs` pulls VOD entries from YouTube into a data repo's
+`data/vods.json`, so the timeline's stream links can be refreshed without
+hand-editing JSON. Requires [yt-dlp](https://github.com/yt-dlp/yt-dlp) on PATH.
+
+```bash
+node scripts/sync-vods.mjs /path/to/data-repo            # dry run — prints the report
+node scripts/sync-vods.mjs /path/to/data-repo --write    # apply it
+```
+
+Sources come from `vods.playlists` / `vods.extraVideos` in the data repo's
+`site.json`, overridable ad hoc with `--playlist URL` and `--video ID`.
+
+Existing entries are never modified, so manual title and date fixes survive
+re-runs; only videos whose id isn't already in `vods.json` are appended, and the
+list is re-sorted by date. The stream date comes from a `YYYY年M月D日` substring
+in the title, falling back to the video's YouTube release date — which for a
+re-upload of an older stream is the *upload* date, not the stream date, so the
+report labels which source each date came from. Undated videos are skipped and
+listed for manual entry.
+
+The report also flags entries in `vods.json` that no longer appear in any
+source, which means the video was removed, privated, or needs pinning via
+`vods.extraVideos`.
+
+`scripts/migrate-twitch-vods.mjs` is a one-shot, kept for provenance: it records
+how llmr's 109 Twitch VODs were paired with their YouTube re-uploads. It refuses
+to run against an already-migrated `vods.json`.
+
 ## Project Structure
 
 ```
+scripts/
+  sync-vods.mjs        # Sync data/vods.json from YouTube playlists (needs yt-dlp)
+  migrate-twitch-vods.mjs # One-shot Twitch → YouTube id migration (provenance)
+  vodTitle.js          # VOD title cleaning rules (pure, tested)
+  ytdlp.js             # yt-dlp CLI wrappers
 lib/
   map.js               # Main application logic — wires together the modules below
   hash.js              # URL hash parsing (pure, tested)
@@ -77,9 +112,24 @@ site.json              # Site identity — see below
     "locale": "ja_JP"
   },
   "aboutTitle": "Header text for the info sidebar pane",
-  "aboutHtml": "<p>HTML content for the info sidebar pane</p>"
+  "aboutHtml": "<p>HTML content for the info sidebar pane</p>",
+  "vods": {
+    "playlists": ["https://www.youtube.com/playlist?list=..."],
+    "extraVideos": ["videoId"],
+    "titleCleanup": {
+      "vocab": ["extra boilerplate tag tokens to strip"],
+      "overrides": { "videoId": "hand-written title" }
+    }
+  }
 }
 ```
+
+The `vods` block is only read by `scripts/sync-vods.mjs`; the build ignores it.
+`extraVideos` pins videos that belong in the timeline but sit outside the
+playlists. Under `titleCleanup`, `vocab` adds site-specific boilerplate tokens
+to the engine defaults in `scripts/vodTitle.js`, and `overrides` supplies a
+final title for videos the cleaning rules can't fix (an unbalanced `【`, a title
+truncated on YouTube itself).
 
 ## Reusable Workflow
 

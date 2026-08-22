@@ -71,7 +71,7 @@ lib/
   tileDate.js          # Tile date selection for exact/fill/before modes (pure, tested)
   timeline.js          # Date formatting and timeline group summary (pure, tested)
   *.test.js            # Vitest unit tests alongside each module
-static/                # HTML template, CSS, icons, Twitch branding
+static/                # HTML template, CSS, icons, YouTube branding
   index.html           # Contains ***TOKEN*** placeholders for site-specific content
 build-assets.mjs       # Creates deploy/ skeleton: static files, Leaflet deps, map.js
 build-data.mjs         # Processes tiles and data from data repo → deploy/data/
@@ -90,7 +90,7 @@ The engine expects a data repo with this layout:
 data/
   config.json          # Per-dimension spatial config (X0, Z0, defaults, tile paths)
   dates.json           # YYYYMMDD → display string
-  vods.json            # [{id, date, title}]
+  vods.json            # [{id, date, title}] — id is a YouTube video id
   overworld/*.json     # Layer files
   nether/*.json
   end/*.json
@@ -165,6 +165,8 @@ jobs:
 **URL state:** Hash-based (`#d=o&dD={...}`) — permalink panel encodes current view.
 
 **Layer JSON format:** `{ id, name, dimension, markers[], lines[] }` — see `notes.md` for full schema.
+
+**VOD links:** `vods.json` entries link to YouTube. `vodUrl()` / `vodIconHtml()` in `lib/timeline.js` are the only places the provider is named, so pointing the timeline elsewhere means changing those two functions and `static/youtube.svg`.
 
 **Build output:** `build-data.mjs` scans `tiles/` and emits `[dim].json` metadata (bounds, dates, layer info) plus per-date tile replacement caches into `deploy/data/`.
 

@@ -178,14 +178,16 @@ details {
 .timeline-details-summary {
   font-size: 1rem;
 }
+/* The VOD icon is a landscape mark sized by height alone, so these offsets
+   centre it against the text rather than leaving it sitting on the baseline. */
 .timeline-details-summary img {
   position: relative;
-  top: 3px;
-  margin-left: 1px;
-  margin-right: 1px;
+  top: 2px;
+  margin-left: 2px;
+  margin-right: 2px;
 }
 .timeline-vod-div {
-  background-color: rgba(204, 170, 255, 0.4);
+  background-color: rgba(255, 180, 180, 0.35);
   padding-left: 8px;
   margin-top: 2.5px;
   margin-bottom: 2.5px;
@@ -194,7 +196,7 @@ details {
 .timeline-vod-div img {
   position: relative;
   top: 2px;
-  left: -1px;
+  margin-right: 1px;
 }
 
 #permalink-text {

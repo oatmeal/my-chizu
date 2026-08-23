@@ -13,6 +13,11 @@
 - **No error handling on `fetch` calls** — 5 bare `await (await fetch(url)).json()` calls across `map.js`, `setupLayers.js`, `setupTimeline.js`. A network error or malformed JSON crashes the app with no user feedback.
 - **No error handling on `navigator.clipboard.writeText()`** in `setupPermalink.js:15` — fails silently if clipboard permission is denied.
 
+## Testing
+
+- **No DOM-level coverage of the timeline builder** — `vite.config.js` sets `environment: "node"`, and `setupTimeline.test.js` only covers `getTileReplacements`. The DOM-building `setupTimelinePanel` is untested, so the wiring between an entry's fields and the rendered `<a href>` (e.g. `vodUrl(vod.id, vod.t)` at `setupTimeline.js:196`) is verified only by reading. Standing up jsdom for this suite would also cover the year/month group assembly and the date/VOD interleaving.
+- **No tests for `scripts/sync-vods.mjs`** — the known/stale/dedupe logic is untested, which is why a `?t=` suffix on an id silently became a duplicate-append path. `scripts/vodTitle.js` is the only part of the sync tooling with coverage. A cheap id-shape guard that flags a malformed id in `vods.json` would catch that class of mistake at sync time.
+
 ## Cleanup
 
 - **Debug `console.log` left in production code** (4 locations):

@@ -43,11 +43,12 @@ Sources come from `vods.playlists` / `vods.extraVideos` in the data repo's
 
 Existing entries are never modified, so manual title and date fixes survive
 re-runs; only videos whose id isn't already in `vods.json` are appended, and the
-list is re-sorted by date. The stream date comes from a `YYYY年M月D日` substring
-in the title, falling back to the video's YouTube release date — which for a
-re-upload of an older stream is the *upload* date, not the stream date, so the
-report labels which source each date came from. Undated videos are skipped and
-listed for manual entry.
+list is re-sorted by date. Extra fields on existing entries, such as a `t` start
+offset, are carried through untouched. The stream date comes from a
+`YYYY年M月D日` substring in the title, falling back to the video's YouTube
+release date — which for a re-upload of an older stream is the *upload* date,
+not the stream date, so the report labels which source each date came from.
+Undated videos are skipped and listed for manual entry.
 
 The report also flags entries in `vods.json` that no longer appear in any
 source, which means the video was removed, privated, or needs pinning via
@@ -90,7 +91,7 @@ The engine expects a data repo with this layout:
 data/
   config.json          # Per-dimension spatial config (X0, Z0, defaults, tile paths)
   dates.json           # YYYYMMDD → display string
-  vods.json            # [{id, date, title}] — id is a YouTube video id
+  vods.json            # [{id, date, title, t?}] — id is a YouTube video id
   overworld/*.json     # Layer files
   nether/*.json
   end/*.json
@@ -167,6 +168,12 @@ jobs:
 **Layer JSON format:** `{ id, name, dimension, markers[], lines[] }` — see `notes.md` for full schema.
 
 **VOD links:** `vods.json` entries link to YouTube. `vodUrl()` / `vodIconHtml()` in `lib/timeline.js` are the only places the provider is named, so pointing the timeline elsewhere means changing those two functions and `static/youtube.svg`.
+
+**VOD start offsets:** an entry may carry an optional `t` (seconds) to deep-link
+part way into a long stream — `vodUrl()` renders it as YouTube's `&t=<n>s`. It is
+a separate field on purpose: `id` must stay a bare video id, since
+`scripts/sync-vods.mjs` matches ids against playlist entries verbatim and would
+otherwise re-add the video as a duplicate and report the offset entry as stale.
 
 **Build output:** `build-data.mjs` scans `tiles/` and emits `[dim].json` metadata (bounds, dates, layer info) plus per-date tile replacement caches into `deploy/data/`.
 

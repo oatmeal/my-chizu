@@ -2,9 +2,15 @@
 
 Status: **Phases 0–2.5 are built.** The extraction pipeline, the encoded photo
 set, the layer, the clustering, the lightbox, the photos pane and the timeline
-interaction all exist and are covered by tests. What remains is Phase 3 (OCR,
-to bring in the screenshots whose filenames carry no coordinate) and Phase 4
-(chat logs). Nothing is committed to `llmr` yet — see "Before committing".
+interaction all exist and are covered by tests. What remains is Phase 3 (photo
+review in the `mc-screenshot-to-map` web app) and Phase 4 (OCR, to bring in the
+screenshots whose filenames carry no coordinate). Nothing is committed to
+`llmr` yet — see "Previewing before you commit".
+
+**Chat logs are out of scope.** They stay private and are never published, in
+any form — not on the map, not as a timeline row, not as a count. The
+classifier still has a `chat` category, because that is how those files are
+kept out of the photo set, and it must stay: the category is the exclusion.
 
 This doc is the shared context across sessions. When something here is settled
 by writing code, update the section rather than leaving the doc describing a
@@ -37,9 +43,9 @@ Measured over `../raw` by `build_photos.py --survey`, 2026-08. 5,760 images:
 | Category | n | How it is decided |
 |---|---|---|
 | `tile` | 4,835 | nested under a dimension folder, claimed by `raw_identity.csv`, or named for a tile index |
-| `chat` | 414 | `chat*.png` |
+| `chat` | 414 | `chat*.png` — classified only so they are excluded; never published |
 | `photo` | 297 | loose, named for a world coordinate |
-| `unknown` | 214 | loose, named descriptively — Phase 3 |
+| `unknown` | 214 | loose, named descriptively — waiting on OCR |
 
 Two corrections to the first pass of these numbers, both of which moved photos
 *out* of the set and are the reason to run the classifier rather than a glob:
@@ -126,7 +132,7 @@ conservative outcome the rule exists to produce.
 **Order still matters: OCR the taskbar clock before cropping it away.** The
 clock is legible in both generations and is the only source of wall-clock time.
 Roughly 40 files have no taskbar at all and have nothing beyond their folder
-date. Phase 3.
+date.
 
 ## Storage
 
@@ -154,12 +160,48 @@ code change, no data migration. A plain `<img>` loads cross-origin without CORS.
 **Raw PNGs never enter the data repo.** `../raw` is untracked by `llmr` and
 stays that way; the deploy artifact is the derived WebP.
 
-### Before committing
+### Previewing before you commit
+
+**Nothing has to be committed to see the real thing.** `build_photos.py --write`
+puts the WebP pairs and the layer JSONs into the `llmr` working tree, and the
+`my-chizu` build copies them into `llmr/deploy/`, which is gitignored. So the
+whole feature can be run, looked at and thrown away without touching git:
+
+```bash
+# 1. encode into the llmr working tree (writes ~35 MB, commits nothing)
+cd mc-screenshot-to-map && uv run python scripts/build_photos.py --write
+
+# 2. build the site
+cd ../my-chizu && node build.mjs ../llmr
+
+# 3. serve it
+python -m http.server --directory ../llmr/deploy 8000
+```
+
+Then open `http://localhost:8000/`, and in the layers tab tick
+「スクリーンショット」. Worth walking through, because each exercises a different
+part of the design:
+
+- **Zoom out to the whole map, then in.** The cluster counts should fall apart
+  into individual thumbnails. This is the clustering decision.
+- **Open a cluster over the main base** and arrow through it. This is the
+  190-photo stack the pins alone cannot handle.
+- **Press 「この日付の地図を表示」** in the lightbox and watch the terrain
+  change under the pin. This pairing is the point of the feature.
+- **Scrub the timeline backward.** Photos should disappear as you pass the
+  dates they were taken on, and the 📷 counts appear in the month headings.
+- **Switch to the nether.** 17 photos, positioned by the same code.
+- **Open the photos tab** and pan; the list should re-filter to the viewport.
+
+To undo it entirely: `git clean -nd` in `llmr` to see the untracked photo files,
+then `git clean -fd` once the list looks right.
+
+### Then committing
 
 `llmr/.git` is 185 MB, and it is that small only because the tiles were written
 once. Each re-encode of the photo set adds another ~35 MB of blobs permanently.
-**Settle the encoding by looking at the images before the first commit** —
-revision three is what hurts, not the import. A 30-file sample is one command:
+**Settle the encoding before the first commit** — revision three is what hurts,
+not the import. A 30-file sample at the candidate settings is one command:
 
 ```
 uv run python scripts/build_photos.py --sample 30   # → scratch/photo_sample/
@@ -167,6 +209,10 @@ uv run python scripts/build_photos.py --sample 30   # → scratch/photo_sample/
 
 The current setting is WebP, long edge 1600, q80, plus a 400px q72 thumbnail.
 Minecraft's flat-shaded art is close to a best case for WebP.
+
+Note that `mc-screenshot-to-map/scratch/` is untracked but **not** gitignored,
+and a sample run leaves tens of MB in it. Ignore it before someone commits it
+by accident.
 
 ## Data format
 
@@ -192,7 +238,8 @@ a string id yields `NaN`.
   render time. `y` is `null` when the position came from a filename, which
   carries no height, and the lightbox caption drops it when it is.
 - `kind` — dispatches the renderer. Absent means the existing marker/line layer.
-- `time` — `HH:MM`, omitted when there was no taskbar clock. Phase 3.
+- `time` — `HH:MM`, omitted when there was no taskbar clock. Not populated
+  yet; it arrives with OCR.
 - `src` — `filename` | `hud` | `manual`.
 - `title` — optional, hand-written, never generated.
 
@@ -204,9 +251,9 @@ correction mechanism rather than a convenience, keyed by raw path and carrying
 dimension, position, time and title. It lives in git next to `raw_identity.csv`
 for the reason `metadata_store.py` already gives: the diff is the audit trail.
 
-**Nine filename coordinates have now been checked against the HUD and all nine
+**Ten filename coordinates have now been checked against the HUD and all ten
 agree** — `216x59z` reads `位置: 216, 56, 59`, `2938x367z` reads
-`位置: 2938, 64, 367`, and so on. That is not proof, but it is no longer two
+`位置: 2938, 64, 367`, `6670x542z` reads `位置: 6670, 62, 542`, and so on. That is not proof, but it is no longer two
 spot-checks.
 
 ## Dimension independence
@@ -322,9 +369,61 @@ the photo was taken" means. Both ride the permalink hash (`h.p`).
 counts toward the summary, including the 218 that fall on dates which already
 have a tile row of their own — only the *row* is suppressed there.
 
-**Chat logs stay off the map.** They have no location and reading one is a
-full-screen act. Timeline-only entries — a 💬 count and a row that opens the
-lightbox. Placing them geographically would be inventing data. Phase 4.
+## Photo review in the web app
+
+**Phase 3.** `mc-screenshot-to-map` already has a review UI for map tiles —
+FastAPI + Jinja2 at `web/app.py`, with a queue, a per-date page, a per-tile
+page and a deploy page. Photos should join it rather than grow a second review
+surface, because the two need the same things: look at a derived artefact
+beside its source, record a human judgement, and never let that judgement
+outlive the pixels it was made about.
+
+Today the photo pipeline has no review step at all. Its human decisions live in
+`metadata/photo_overrides.csv`, hand-edited, which was the right call for 27
+dimension corrections and will not survive the OCR phase.
+
+### What it should reuse
+
+- **`metadata_store.py` decision states.** `approved` / `hold` / `rejected` /
+  undecided carry over unchanged. A photo on `hold` means looked at, known
+  imperfect, no better version — an uncropped screenshot whose chrome the rules
+  refused to guess at is exactly that, and it should still ship.
+- **The digest rule.** Every tile decision records the digest of the tile it was
+  made about, so a re-extraction that changes the pixels drops it back into the
+  queue instead of inheriting an approval made about a different image. Photos
+  need this *more* than tiles do, because the encoder settings are still in
+  play: a re-encode at a different quality must not silently keep its approvals.
+- **The deploy page's shape.** `/deploy` shows new / replace / identical, blocks
+  on problems, and commits nothing. The photo import wants precisely that, and
+  it is where the "settle the encoding before the first commit" discipline
+  should be enforced rather than remembered.
+- **The compare widget** (`web/static/compare.js`), for the one comparison that
+  matters here: the raw PNG against the encoded WebP, to judge the quality
+  setting on real content instead of on a file listing.
+
+### What is new
+
+- **A crop review.** The 7 files `detect_chrome` flags, and any future flag, laid
+  out with the detected band drawn on the image. The decision is usually "the
+  rule was right to refuse", which is an `approve`, not a fix.
+- **A dimension review.** The one that cannot be automated and the one that goes
+  silently wrong. It wants the photo, its coordinate, its ×8 coordinate, and
+  what is at both places on the map — the ×8 test is what identified the nether
+  photos, and showing it is more useful than asking someone to imagine it.
+- **A position review, once OCR lands.** An OCR'd coordinate is a claim
+  about where a screenshot was taken and there is nothing to check it against,
+  so the review is "does this photo look like it belongs at this spot on the
+  map" — the photo beside the deployed tile for its coordinate and date.
+- **Writing back to `photo_overrides.csv`** rather than to a new store, so the
+  hand corrections stay one reviewable file in git and the diff stays the audit
+  trail.
+
+### The ordering argument
+
+Build this **before** OCR, not after. OCR is what will produce review work
+at volume — 214 files with machine-read coordinates, each unverifiable — and
+building the reviewer first means that output has somewhere to land the day it
+exists. Doing it the other way round means hand-editing a CSV against 214 rows.
 
 ## Rejected
 
@@ -345,21 +444,25 @@ turns up.
 - **Phase 2.5 — nether and end photos.** *Done for the nether* (17 photos), and
   it was a data change and nothing else, as intended. No end photos exist yet;
   the id (202) is reserved and the code path is the same one.
-- **Phase 3 — OCR.** HUD coordinates and the taskbar clock, bringing in the 214
+- **Phase 3 — photo review in the web app.** See "Photo review in the web app"
+  above. This and OCR were the other way round in the original plan; they are
+  swapped deliberately, because OCR is what produces review work at volume and
+  building the reviewer second means hand-editing a CSV against 214 rows.
+- **Phase 4 — OCR.** HUD coordinates and the taskbar clock, bringing in the 214
   descriptively-named screenshots and giving the existing 280 a wall-clock time.
   Crop the clock *after* reading it.
-- **Phase 4 — chat logs** as timeline-only entries.
 
 ## Open questions
 
 - **How many `-N` session variants matter?** Still open. The timeline is
   folder-date granular and the wall-clock time is not yet extracted, so photos
   within a day have no sort key beyond their filename.
-- **Should an unpositioned photo appear at all?** Still open, and Phase 3 makes
+- **Should an unpositioned photo appear at all?** Still open, and OCR makes
   it concrete: OCR will place some of the 214 and leave the rest dated but
-  unplaced. A timeline-only row like a chat log is the obvious answer.
+  unplaced. A timeline-only row is the obvious answer, but it may be a large
+  and uninteresting pile.
 - **Do the non-`c` variants hold distinct shots?** Still unopened. There are 11
   of them (`a`, `b`, `1`, `2`, `-0`, `-1`), and they are currently all kept as
   separate photos, which is the safe direction to be wrong in.
 - ~~Clustering: world coordinates or screen pixels?~~ Answered above.
-- ~~Are the filename coordinates right?~~ Nine of nine agree with the HUD.
+- ~~Are the filename coordinates right?~~ Ten of ten agree with the HUD.

@@ -6,7 +6,9 @@
 
 ## Features
 
-- **Screenshot photo layer** — built for the 280 screenshots whose filename carries a world coordinate (263 overworld, 17 nether). Layer, clustering, lightbox, photos pane and timeline filtering all exist. Remaining, per `PLAN_PHOTOS.md`: **Phase 3**, OCR of the coordinate HUD and taskbar clock, which brings in the 214 descriptively-named screenshots and gives every photo a wall-clock time; and **Phase 4**, chat logs as timeline-only entries. The photo set is not committed to `llmr` yet — settle the encoding by looking at a `--sample` first, because each re-encode adds its blobs to that repo's history permanently.
+- **Screenshot photo layer** — built for the 280 screenshots whose filename carries a world coordinate (263 overworld, 17 nether). Layer, clustering, lightbox, photos pane and timeline filtering all exist. Remaining, per `PLAN_PHOTOS.md`: **Phase 3**, photo review in the `mc-screenshot-to-map` web app, reusing its decision states and digest rule; then **Phase 4**, OCR of the coordinate HUD and taskbar clock, which brings in the 214 descriptively-named screenshots and gives every photo a wall-clock time. That order is deliberate — OCR is what produces review work at volume. Chat logs are out of scope: they stay private and are never published.
+
+  The photo set is not committed to `llmr` yet. It can be previewed end-to-end without committing anything (`llmr/deploy/` is gitignored) — see "Previewing before you commit" in `PLAN_PHOTOS.md`. Settle the encoding before the first commit, because each re-encode adds its blobs to that repo's history permanently.
 
 ## Robustness
 

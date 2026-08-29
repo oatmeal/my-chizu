@@ -180,6 +180,8 @@ the design:
 - **Hover a row, then hover a pin.** Each should mark the other.
 - **Tick 「このタブを閉じても写真を地図に表示し続けます」** and close the tab; the
   pins stay, and the permalink then reproduces them.
+- **Press 「リンクをコピー」 in the lightbox** and open the copied URL in a fresh
+  tab: the same photo should reopen, in its pin, over the same terrain.
 
 To undo it entirely: `git clean -nd` in `llmr` to see the untracked photo files,
 then `git clean -fd` once the list looks right. The build tree is outside every
@@ -413,6 +415,27 @@ above it, so a gap between the two reads as though it belongs to neither.
 
 It opens on the photo the pin was showing (`cluster.leadIndex`), not on
 whatever sorted first, so clicking a pin gives you the image you clicked.
+
+**「リンクをコピー」 links to the photo itself.** A screenshot is the most
+pointed-at thing on the map — "look at this one" — and until this button the
+only shareable state was a viewport, which does not survive a cluster of a
+hundred. The link carries the photo's stem in a top-level `ph` hash key, the
+photo's *own* coordinates rather than the map centre (so closing the lightbox
+leaves the recipient looking at the pin), and the timeline verbatim — the photo
+is on screen under exactly those settings, which is how it came to be in the
+lightbox, so repeating them puts it back with its terrain.
+
+`ph` is an arrival instruction, not state: `setupPhotoPanel` consumes it on the
+first `dimviewready`, after `apply` has drawn the pins, and a dimension switch
+afterwards does not reopen it. Carrying it also *implies* the photo layer — it
+ticks the persist checkbox — so a link works whether or not the sender was
+browsing with the pins up. It resolves to a pin rather than to a lone image,
+via `find` on the layer's current pins, because showing the photo alone would
+hide that it sits in a stack.
+
+The confirmation is the button's own label rather than a toast: the caption bar
+has no room for a status line, and a toast over the photo covers the thing being
+looked at.
 
 ## Timeline behaviour
 

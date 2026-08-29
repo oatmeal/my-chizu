@@ -1,5 +1,7 @@
 `hashObj`:
   - `d` (current dimension)
+  - `ph` (a photo's file stem to open the lightbox on, from a photo permalink;
+    consumed on the first `dimviewready` rather than kept as state)
   - `dD` (dimension dict) {for each dimension}
     - `c` (coords)
       - `X`

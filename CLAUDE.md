@@ -200,6 +200,14 @@ dimension metadata: the viewer has to know a photo layer before it fetches one.
 Hovering a pin or a pane row fires `photohighlight` with a set of photo stems,
 which both renderings listen for.
 
+**Photo permalinks:** the lightbox's 「リンクをコピー」 button builds a link whose
+`ph` hash key is the photo's file stem, alongside coordinates centred on the
+photo and the timeline state it is visible under. On arrival `setupPhotoPanel`
+consumes `ph` once, switches the photo layer on regardless of what `v` carried,
+and opens the lightbox on the *pin* holding that photo, so the visitor lands
+where a click on that pin would have. `buildPermalinkUrl` in `lib/permalink.js`
+is still the only place a hash URL is assembled.
+
 **Two timeline dates:** `timeline.date` selects the terrain and
 `timeline.photoDate` selects which photos exist. They are equal for every
 ordinary selection, and differ only for a date that has photos but no tiles —

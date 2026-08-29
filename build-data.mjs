@@ -20,6 +20,26 @@ function mod(a, b) {
 }
 
 /**
+ * Order two tile replacement entries.
+ *
+ * These are objects, so the bare `Array.prototype.sort()` this replaced did
+ * nothing at all: with no comparator, sort compares `String(element)`, and
+ * every object stringifies to "[object Object]". The array order therefore
+ * followed whatever order `fast-glob` happened to walk the tiles in, and two
+ * builds of identical source produced different bytes.
+ *
+ * `key` alone is total — a child tile is pushed at most once per parent — but
+ * the date tiebreak costs nothing and keeps the order defined if that changes.
+ * Compared with `<` rather than `localeCompare` so the result does not depend
+ * on the build machine's locale.
+ */
+function compareReplacements(a, b) {
+  if (a.key !== b.key) return a.key < b.key ? -1 : 1;
+  if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+  return 0;
+}
+
+/**
  * Extend a bounding box in place to cover a set of Minecraft [X, Z] points.
  *
  * Points arrive in dimension-native coordinates, so nether ones are scaled up
@@ -273,7 +293,7 @@ for (const dim of [DIM_OVERWORLD, DIM_NETHER, DIM_END]) {
       }
       // sort for deterministic output
       for (const a of Object.values(tileReplacementsDict)) {
-        a.sort();
+        a.sort(compareReplacements);
       }
       await fsPromises.writeFile(
         join(deployDir, "data", dimension, `${date}-${mode}.json`),

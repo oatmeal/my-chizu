@@ -180,6 +180,10 @@ for (const dim of [DIM_OVERWORLD, DIM_NETHER, DIM_END]) {
       id: over.id,
       name: over.name,
       url: "data/" + dimension + "/" + fnName,
+      // The viewer needs to know a photo layer from a marker layer before it
+      // fetches either: photo layers are driven by the photos tab and are left
+      // out of the layers panel, and the nether's show-everything default.
+      ...(over.kind ? { kind: over.kind } : {}),
     });
 
     if (over.markers) {

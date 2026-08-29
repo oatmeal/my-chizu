@@ -1,11 +1,20 @@
 # Screenshot photo layer — design doc
 
-Status: **Phases 0–2.5 are built.** The extraction pipeline, the encoded photo
-set, the layer, the clustering, the lightbox, the photos pane and the timeline
-interaction all exist and are covered by tests. What remains is Phase 3 (photo
-review in the `mc-screenshot-to-map` web app) and Phase 4 (OCR, to bring in the
-screenshots whose filenames carry no coordinate). Nothing is committed to
-`llmr` yet — see "Previewing before you commit".
+Status: **Phases 0–2.5 are built, and viewer v1 has had its first review
+pass.** The extraction pipeline, the encoded photo set, the layer, the
+clustering, the lightbox, the photos pane and the timeline interaction all exist
+and are covered by tests. What remains is Phase 3 (photo review in the
+`mc-screenshot-to-map` web app) and Phase 4 (OCR, to bring in the screenshots
+whose filenames carry no coordinate). Nothing is committed to `llmr` yet — see
+"Previewing before you commit".
+
+The review pass changed six things, each recorded in its own section below:
+photos are switched on from the photos tab rather than from the layers panel;
+clustering now guarantees a minimum separation between pins instead of only
+bounding their average density; hovering a pin marks its rows and vice versa;
+every tile date carries its own `(📷n)` count; a cluster the timeline has split
+shows the split rather than presenting future photos as present ones; and the
+lightbox has a filmstrip so a cluster is no longer a stack of unknown depth.
 
 **Chat logs are out of scope.** They stay private and are never published, in
 any form — not on the map, not as a timeline row, not as a count. The
@@ -26,9 +35,9 @@ Two repos are involved:
   - `tests/test_screenshots.py` — 54 tests
 - `my-chizu` (this repo) — the viewer: the photo layer, its timeline behaviour,
   and the lightbox. Engine-generic; `llmr` supplies the data.
-  - `lib/photos.js` — pure logic, 31 tests
-  - `lib/setupPhotos.js` — layer, lightbox, pane, 28 tests
-  - photo coverage in `test/init-integration.test.js` — 11 tests
+  - `lib/photos.js` — pure logic, 37 tests
+  - `lib/setupPhotos.js` — layer, lightbox, pane, 47 tests
+  - photo coverage in `test/init-integration.test.js` — 15 tests
 
 ## Goal
 
@@ -178,9 +187,9 @@ cd ../my-chizu && node build.mjs ../llmr
 python -m http.server --directory ../llmr/deploy 8000
 ```
 
-Then open `http://localhost:8000/`, and in the layers tab tick
-「スクリーンショット」. Worth walking through, because each exercises a different
-part of the design:
+Then open `http://localhost:8000/` and click the photos tab, which is what turns
+the pins on. Worth walking through, because each exercises a different part of
+the design:
 
 - **Zoom out to the whole map, then in.** The cluster counts should fall apart
   into individual thumbnails. This is the clustering decision.
@@ -189,9 +198,13 @@ part of the design:
 - **Press 「この日付の地図を表示」** in the lightbox and watch the terrain
   change under the pin. This pairing is the point of the feature.
 - **Scrub the timeline backward.** Photos should disappear as you pass the
-  dates they were taken on, and the 📷 counts appear in the month headings.
+  dates they were taken on, and the 📷 counts sit both in the month headings and
+  on each date's own row.
 - **Switch to the nether.** 17 photos, positioned by the same code.
-- **Open the photos tab** and pan; the list should re-filter to the viewport.
+- **Pan with the photos tab open**; the list re-filters to the viewport.
+- **Hover a row, then hover a pin.** Each should mark the other.
+- **Tick 「このタブを閉じても写真を地図に表示し続けます」** and close the tab; the
+  pins stay, and the permalink then reproduces them.
 
 To undo it entirely: `git clean -nd` in `llmr` to see the untracked photo files,
 then `git clean -fd` once the list looks right.
@@ -297,54 +310,144 @@ them:
 
 - `lib/photos.js` — pure: timeline filtering, clustering, URLs, captions, date
   grouping, terrain-date selection.
-- `lib/setupPhotos.js` — the Leaflet layer, the lightbox, the photos pane.
+- `lib/setupPhotos.js` — the Leaflet layer, the lightbox, the photos pane, and
+  the switch for the whole feature.
 - `RENDERERS` in `lib/setupLayers.js` gains `{ key: "photos", render: renderPhotos }`
   and nothing else changes there.
 
+### Who switches photos on
+
+**The photos tab, not the layers panel.** The first version made photos an
+ordinary layer with an ordinary checkbox, which is what the plumbing wanted —
+the layers panel, `visibleLayers` and its hash persistence all came free. But it
+is the wrong shape for the visitor: photos are a *mode of looking* at the map
+rather than one overlay among the rail lines and the nether gates, and asking
+someone to find a checkbox in one tab before the tab named 「スクリーンショット」
+does anything is a puzzle, not a control.
+
+So: opening the photos tab puts the pins up, closing it takes them down, and a
+checkbox in the tab — 「このタブを閉じても写真を地図に表示し続けます」 — keeps them
+up for people who want to browse the map with the photos on.
+
+The plumbing is kept anyway. `setupPhotoPanel`'s `apply` still adds and removes
+the same layer ids from `visibleLayers`, so the permalink still carries them and a link to
+a photo-covered view still reproduces it; the checkbox is seeded from the
+incoming hash on the first `dimviewready` and then applied to every dimension
+the visitor moves to. What changed is who holds the switch, not where the state
+lives.
+
+Two consequences worth knowing:
+
+- `build-data.mjs` copies each layer file's `kind` into the dimension metadata,
+  because the viewer has to tell a photo layer from a marker layer *before*
+  fetching either — to leave it out of the layers panel, and out of the nether's
+  show-everything default.
+- A photo layer therefore has no `check` element. `map.js`'s `visibleLayers`
+  restore and `setupLayers.js`'s panel builder both guard on that.
+
+The layers panel's 🔎 "zoom to this layer" button goes away for photos with the
+row. Nothing has asked for it back yet; if it is wanted, it belongs in the
+photos tab.
+
 ### Clustering
 
-**Answered: screen pixels, not world coordinates.** A fixed 72px cell at the
+**Answered: screen pixels, not world coordinates.** A fixed 84px cell at the
 current zoom. World-coordinate cells are stable and cacheable but look wrong at
 both ends — a cell that separates two builds when zoomed in merges half the map
 when zoomed out. Pixels are what the eye is judging, so one cell size gives one
 density at every zoom and clusters break apart on their own as you zoom in.
 Clustering therefore depends on zoom but *not* on pan, so panning costs nothing.
 
-Measured over the real 263 overworld photos:
+**A grid alone was not enough, and this is the thing the first version got
+wrong.** Because a pin is anchored on a real photo's position rather than on the
+cell centre, two lead photos either side of a cell edge can be a pixel apart. So
+the cell bounded the *average* density and nothing at all bounded the overlap,
+and the map looked cluttered at exactly the zooms where it should have been
+readable.
 
-| zoom | pins | biggest cluster |
-|---|---|---|
-| −3 (min) | 13 | 189 |
-| 4 (default) | 154 | 14 |
-| 5 | 187 | 7 |
-| 7 | 238 | 4 |
+`clusterPhotos` now sweeps the cells in a fixed order — north to south, then
+west to east — and a cell joins a neighbouring cluster whose anchor is nearer
+than one cell. That makes `cellSize` a real **minimum separation between
+rendered pins**. Only the eight neighbouring cells need checking, because an
+anchor two cells away is a full cell width away by construction, so the sweep is
+still linear in the number of photos and still independent of pan. An absorbed
+cell points at its host rather than at itself, which is what stops a run of near
+neighbours walking across the map as a chain of overlapping pairs.
+
+84 is chosen against the ink of a pin: a 56px thumbnail, its 2px border and a
+count badge overhanging 6px at each corner is 72px, so 84 leaves a visible gap
+instead of letting neighbours kiss.
+
+Measured over the real 263 overworld photos, at cell 84, with the closest pair
+of pins measured at each zoom:
+
+| zoom | pins | biggest cluster | closest pins |
+|---|---|---|---|
+| −3 (min) | 6 | 201 | 131px |
+| 0 | 29 | 114 | 101px |
+| 4 (default) | 121 | 19 | 85px |
+| 5 | 147 | 12 | 85px |
+| 7 | 213 | 4 | 86px |
+
+The closest-pins column is the point: under the old pure grid it was 0 by
+construction, and pins routinely sat on top of each other.
 
 This was the load-bearing question. The set is severely concentrated — 40% of
 the photos sit in one 500-block cell at (6500, 500) and the top three cells hold
 54% — so the default view without clustering is a hundred-odd pins stacked on
 the main base.
 
-A cluster renders as its **newest** photo's thumbnail with a count badge; a
-lone photo renders as a bare thumbnail. One rule gives all three behaviours the
-design asked for, with zoom doing the work. The pin is anchored on the lead
-photo's real position rather than the cell centroid, so it sits where a photo
-was actually taken instead of in the average of a bay.
+A cluster renders as its **lead** photo's thumbnail with a count badge; a lone
+photo renders as a bare thumbnail. One rule gives all three behaviours the
+design asked for, with zoom doing the work. The pin is anchored on a real photo's
+position rather than the cell centroid, so it sits where somebody stood instead
+of in the average of a bay.
+
+**The lead is the newest photo the timeline says exists** — the newest one that
+is not dimmed, falling back to the newest outright when the whole cluster is
+dim. That qualification is not decoration; see "A cluster the timeline has
+split" below.
 
 ### The photos pane
 
 Lists every photo in the current viewport, newest first, re-filtered on
-`moveend`. Click one and the map flies to it and opens the lightbox.
+`moveend`. Click one and the map flies to it and opens the lightbox. It also
+holds the switch for the whole feature — see "Who switches photos on".
 
 **Co-primary with the pins, not secondary.** Given the concentration above, a
-cluster of 189 photos cannot be explored by clicking it; the list is the way
+cluster of 201 photos cannot be explored by clicking it; the list is the way
 through the main base. The pins are for when you already know where you are
 looking.
+
+**The two renderings point at each other.** Hovering a row outlines its pin and
+lifts it out of the stack with a z-index bump; hovering a pin marks every row it
+stands for and scrolls the first into view. Both directions go through one map
+event, `photohighlight`, carrying a set of photo stems — so each side fires it
+and each side listens, and neither has to know the other exists.
+
+The z-index bump matters more than the outline. Given the concentration, the pin
+a row belongs to is often *underneath* a neighbour, and an outline you cannot see
+answers nothing.
 
 ### The lightbox
 
 Holds the whole cluster, not one photo, so ← → walk it. Escape closes.
 "この日付の地図を表示" sets the timeline to the photo's date — the pairing that
 is the point of the feature.
+
+**A filmstrip under the caption says how deep the stack is.** Without it a
+cluster is a stack of unknown depth and the arrow keys are a guess at how far
+there is left to go; with it the current photo is outlined among its siblings and
+any of them is one click away. It is built on open rather than on every step,
+because a cluster does not change while you walk it and a 201-thumbnail strip is
+not free.
+
+The layout is a single column — photo, caption bar, filmstrip — rather than the
+bar pinned to the bottom of the screen as it was. The bar describes the photo
+above it, so a gap between the two reads as though it belongs to neither.
+
+It opens on the photo the pin was showing (`cluster.leadIndex`), not on
+whatever sorted first, so clicking a pin gives you the image you clicked.
 
 ## Timeline behaviour
 
@@ -365,9 +468,36 @@ its own to select: that row sets `photoDate` to itself and drops `date` to the
 nearest earlier tile date, which is what "what did this place look like when
 the photo was taken" means. Both ride the permalink hash (`h.p`).
 
-`groupSummaryHtml` renders `(🗓3) (▶4) (📷12)` per year/month group. Every photo
-counts toward the summary, including the 218 that fall on dates which already
-have a tile row of their own — only the *row* is suppressed there.
+`groupSummaryHtml` renders `(🗓3) (▶4) (📷12)` per year/month group, **and each
+tile date's own row now carries its `(📷n)` too**, from the same function. Before
+that, the only rows advertising photos were the 19 photo-only ones, which reads
+exactly backwards — as though a day somebody spent mapping never has
+screenshots, when in fact 218 of the 263 photos fall on dates that already have a
+tile row. Only the extra *row* was ever suppressed there, never the photos.
+
+### A cluster the timeline has split
+
+In fill mode a cluster can hold photos from before and after the selected date,
+and the first version got this visibly wrong. It dimmed a cluster only when
+*every* photo in it was dim, and it led with the newest photo outright — so a
+mixed cluster rendered a future photo at full brightness, and a photo the
+timeline had decided was not taken yet looked exactly like one that was. Clicking
+a date faded the lone future pins and left the grouped ones bright.
+
+Two changes, both in `clusterPhotos`:
+
+- **The lead is the newest photo that is not dimmed**, falling back to the newest
+  outright only when the whole cluster is dim. The image on a bright pin is
+  therefore always a photo you have scrubbed far enough forward to have taken.
+  A cluster is dim exactly when its lead is, which for the all-dim case is the
+  old behaviour unchanged.
+- **The badge writes the split out** as `3+2`: three photos that exist, two that
+  do not yet, the tail in a lighter weight. Folding them into one `5` is what
+  made a bright pin able to be mostly future. A cluster with no split reads as a
+  plain count, which is the common case — `before` mode dims nothing at all.
+
+A cluster still holds all of its photos and the lightbox still walks all of
+them: the timeline's judgement is about what to *show*, not about what to hide.
 
 ## Photo review in the web app
 
@@ -439,8 +569,12 @@ turns up.
 - **Phase 0 — survey.** *Done.* `--survey` and `--crop-survey` are the standing
   version of it.
 - **Phase 1 — extraction, world-coord only.** *Done.* 280 photos, no OCR.
-- **Phase 2 — viewer v1.** *Done.* Layer, clustering, lightbox, pane, timeline
-  filtering, month counts.
+- **Phase 2 — viewer v1.** *Done, plus one review pass.* Layer, clustering,
+  lightbox, pane, timeline filtering, per-date and per-month counts. The review
+  pass moved the switch into the photos tab, gave clustering a real minimum
+  separation, linked pin and row by hover, put a filmstrip in the lightbox and
+  stopped a split cluster misreporting itself. Each is written up in its own
+  section above.
 - **Phase 2.5 — nether and end photos.** *Done for the nether* (17 photos), and
   it was a data change and nothing else, as intended. No end photos exist yet;
   the id (202) is reserved and the code path is the same one.

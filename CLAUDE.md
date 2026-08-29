@@ -186,9 +186,19 @@ jobs:
 **Photo layer:** a layer file with `kind: "photos"` and a `photos` array is
 drawn by `renderPhotos` in `lib/setupPhotos.js` instead of as markers/lines.
 Photos cluster by a fixed pixel cell at the current zoom (so clustering depends
-on zoom but not on pan), render as thumbnail pins with a count badge, and open
-a lightbox that walks the whole cluster. `data/[dim]/photos.json` is produced by
+on zoom but not on pan) with a guaranteed minimum separation between pins, render
+as thumbnail pins with a count badge, and open a lightbox that walks the whole
+cluster with a filmstrip. `data/[dim]/photos.json` is produced by
 `mc-screenshot-to-map`; see `PLAN_PHOTOS.md`.
+
+**Who switches photos on:** the photos pane, not the layers panel. A photo layer
+gets no layers-panel row and therefore no `check` element — opening the photos
+tab adds it to the map, closing the tab removes it, and `#photos-persist` keeps
+it up past a close. Visibility still rides `visibleLayers` and the permalink
+hash. This is why `build-data.mjs` copies each layer file's `kind` into the
+dimension metadata: the viewer has to know a photo layer before it fetches one.
+Hovering a pin or a pane row fires `photohighlight` with a set of photo stems,
+which both renderings listen for.
 
 **Two timeline dates:** `timeline.date` selects the terrain and
 `timeline.photoDate` selects which photos exist. They are equal for every
@@ -207,7 +217,7 @@ a separate field on purpose: `id` must stay a bare video id, since
 `scripts/sync-vods.mjs` matches ids against playlist entries verbatim and would
 otherwise re-add the video as a duplicate and report the offset entry as stale.
 
-**Build output:** `build-data.mjs` scans `tiles/` and emits `[dim].json` metadata (bounds, dates, layer info, per-date photo counts) plus per-date tile replacement caches into `deploy/data/`, and copies `tiles/` and `photos/` into `deploy/`. A layer's photos extend the dimension's bounds, so a far-flung screenshot is reachable on the map.
+**Build output:** `build-data.mjs` scans `tiles/` and emits `[dim].json` metadata (bounds, dates, layer info including each layer's `kind`, per-date photo counts) plus per-date tile replacement caches into `deploy/data/`, and copies `tiles/` and `photos/` into `deploy/`. A layer's photos extend the dimension's bounds, so a far-flung screenshot is reachable on the map.
 
 **`index.html` tokens:** `***TITLE***`, `***OG_TITLE***`, `***OG_URL***`, `***OG_IMAGE***`, `***OG_DESCRIPTION***`, `***OG_LOCALE***`, `***ABOUT_TITLE***`, `***ABOUT_HTML***`, `***PHOTOS_CONFIG***` — substituted from `site.json` by `build-assets.mjs`.
 

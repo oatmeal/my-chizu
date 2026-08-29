@@ -247,6 +247,15 @@ details {
 .photo-pin-dim img {
   opacity: 0.35;
 }
+/* Hovering the matching row in the photos pane. The ring matters less than the
+   z-index bump the JS applies with it: a pin can sit underneath a neighbour,
+   and an outline you cannot see answers nothing. Listed after the dim rule so
+   a highlighted pin comes back to full opacity. */
+.photo-pin-highlight img {
+  border-color: #ffd54a;
+  opacity: 1;
+  box-shadow: 0 0 0 3px rgba(255, 213, 74, 0.85), 0 2px 8px rgba(0, 0, 0, 0.6);
+}
 .photo-pin-count {
   position: absolute;
   top: -6px;
@@ -262,6 +271,13 @@ details {
   text-align: center;
   font-weight: bold;
 }
+/* The tail of a `3+2` badge: photos in this cluster that postdate the selected
+   date, so the count never presents future photos as present ones. */
+.photo-pin-count-later {
+  font-weight: normal;
+  font-size: 0.62rem;
+  opacity: 0.8;
+}
 
 #photo-lightbox {
   position: fixed;
@@ -275,10 +291,30 @@ details {
 #photo-lightbox[hidden] {
   display: none;
 }
+/* The photo, its caption bar and the filmstrip are one column: the bar has to
+   stay attached to the image it describes, so it is in normal flow rather than
+   pinned to the bottom of the screen. */
+#photo-lightbox-frame {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 96vw;
+  max-height: var(--h, 100vh);
+}
+#photo-lightbox-stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+}
 #photo-lightbox-image {
-  max-width: 92vw;
-  max-height: 82vh;
+  max-width: 96vw;
+  /* Leaves room for the bar and the strip; --h is the real viewport height,
+     which is what works on mobile. */
+  max-height: calc(var(--h, 100vh) - 210px);
   object-fit: contain;
+  display: block;
 }
 #photo-lightbox button {
   position: absolute;
@@ -303,8 +339,7 @@ details {
   right: 0;
 }
 #photo-lightbox-bar {
-  position: absolute;
-  bottom: 0;
+  position: static;
   width: 100%;
   padding: 10px 16px;
   box-sizing: border-box;
@@ -327,6 +362,40 @@ details {
   background-color: rgba(255, 255, 255, 0.15);
 }
 
+/* The filmstrip. A cluster is a stack of unknown depth without it, and the
+   arrow keys are then a guess at how far there is to go. */
+#photo-lightbox-strip {
+  display: flex;
+  gap: 4px;
+  max-width: 96vw;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 8px 2px;
+}
+#photo-lightbox-strip[hidden] {
+  display: none;
+}
+.photo-lightbox-thumb {
+  flex: 0 0 auto;
+  width: 80px;
+  height: 45px;
+  object-fit: cover;
+  border: 2px solid transparent;
+  border-radius: 3px;
+  opacity: 0.55;
+  cursor: pointer;
+}
+.photo-lightbox-thumb:hover {
+  opacity: 0.85;
+}
+.photo-lightbox-thumb-current {
+  opacity: 1;
+  border-color: #ffd54a;
+}
+
+#photos-switch {
+  margin-bottom: 8px;
+}
 #photos-status {
   margin-bottom: 8px;
 }
@@ -359,6 +428,16 @@ details {
 }
 .photos-item-dim img {
   opacity: 0.4;
+}
+/* The other half of the pin↔row link: a pin under the cursor marks the rows it
+   stands for, and the JS scrolls the first of them into view. */
+.photos-item-highlight {
+  background-color: rgba(255, 213, 74, 0.3);
+  border-radius: 4px;
+}
+.photos-item-highlight img {
+  opacity: 1;
+  outline: 2px solid #ffd54a;
 }
 
 /* A photo-only date has no tiles to select, so its row is not a radio -- it

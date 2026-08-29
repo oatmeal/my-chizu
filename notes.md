@@ -10,6 +10,7 @@
       - `d` (date)
       - `f` (fill)
       - `e` (exact)
+      - `p` (photo date)
 
 `myMap`:
   - `dim`
@@ -34,7 +35,11 @@
         - `id`
         - `name`
         - `url`
+        - `kind` (only when the layer file has one; `"photos"` today. Read before
+          the layer is fetched, to keep photo layers out of the layers panel and
+          out of the nether's show-everything default)
         - `fraction` (HACK for layer coloring, added by loadTileData)
+      - `photoDates` {for each date with photos}: count
       - `tilePath`
       - `errorTileUrl`
       - `tileSize`
@@ -53,7 +58,8 @@
             - `date`
           - `skip` {for any skippable tile key}
   - `layerCache` {for each layerId}
-    - `check` (HTML element)
+    - `check` (HTML element; absent for a photo layer, which has no layers-panel
+      row — the photos pane owns its visibility)
     - `url`
     - `data` (loaded from `data/[dim]/[layer].json`)
       - `id`

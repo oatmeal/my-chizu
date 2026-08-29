@@ -39,7 +39,14 @@ function makeDimData(overrides = {}) {
 const overworldDim = makeDimData({
   layers: [
     { id: 1, name: "Test Layer", url: "data/overworld/test.json" },
-    { id: 102, name: "スクリーンショット", url: "data/overworld/photos.json" },
+    {
+      id: 102,
+      name: "スクリーンショット",
+      url: "data/overworld/photos.json",
+      // `build-data.mjs` copies this out of the layer file so the viewer can
+      // tell a photo layer from a marker layer before fetching either.
+      kind: "photos",
+    },
   ],
   // 20240115 has photos but no tiles, which is the common case: most photo
   // dates are sessions where nobody screenshotted a map.
@@ -197,6 +204,7 @@ beforeAll(async () => {
           <button id="timeline-button-right"></button>
         </div>
         <div class="leaflet-sidebar-pane" id="photos">
+          <input type="checkbox" id="photos-persist">
           <div id="photos-status"></div>
           <div id="photos-list"></div>
         </div>
@@ -352,9 +360,15 @@ describe("photo layer integration", () => {
     }
   });
 
-  it("registers the photos layer alongside the marker layers", () => {
+  it("caches the photos layer without giving it a layers-panel row", () => {
+    // Photos are switched on by opening the photos tab, not from the layers
+    // panel, so the layer is loadable but has no checkbox of its own.
     expect(mymap.layerCache[102]).toBeDefined();
-    expect(mymap.layerCache[102].check).toBeDefined();
+    expect(mymap.layerCache[102].url).toBe("data/overworld/photos.json");
+    expect(mymap.layerCache[102].check).toBeUndefined();
+    expect(document.getElementById("map-layer-102")).toBeNull();
+    // The marker layer beside it still gets one.
+    expect(document.getElementById("map-layer-1")).not.toBeNull();
   });
 
   it("starts the photo filter on the selected tile date", () => {
@@ -381,11 +395,32 @@ describe("photo layer integration", () => {
     expect(summaries.some((h) => h.includes("(📷5)"))).toBe(true);
   });
 
-  it("draws pins once the layer is switched on", async () => {
-    const check = mymap.layerCache[102].check;
-    check.checked = true;
-    await check.onchange();
+  it("draws no pins until the photos tab is opened", () => {
+    expect(document.querySelectorAll(".photo-pin")).toHaveLength(0);
+    expect(mymap.dimData.visibleLayers.has(102)).toBe(false);
+  });
+
+  it("draws pins as soon as the photos tab is opened", async () => {
+    mymap.sidebar.open("photos");
+    await mymap.photosApplied;
     expect(document.querySelectorAll(".photo-pin").length).toBeGreaterThan(0);
+  });
+
+  it("counts a tile date's own photos on its row", () => {
+    // 20240101 has two photos and tiles of its own. Before this, the only rows
+    // advertising photos were the ones with no tiles, which read as though a
+    // mapping day never has screenshots.
+    const label = document.querySelector(
+      `label[for="map-timeline-20240101"]`
+    );
+    expect(label.innerHTML).toContain("(📷2)");
+  });
+
+  it("leaves a date with no photos unadorned", () => {
+    const label = document.querySelector(
+      `label[for="map-timeline-20240201"]`
+    );
+    expect(label.innerHTML).not.toContain("📷");
   });
 
   it("a photo-only row keeps the terrain on the nearest earlier tile date", async () => {
@@ -418,5 +453,20 @@ describe("photo layer integration", () => {
 
   it("carries the photo date into the permalink hash", () => {
     expect(mymap.hashObj.dD.o.h.p).toBeDefined();
+  });
+
+  it("keeps photos up past a tab close when told to persist", async () => {
+    const persist = document.getElementById("photos-persist");
+    persist.checked = true;
+    await persist.onchange();
+    expect(mymap.dimData.visibleLayers.has(102)).toBe(true);
+    mymap.sidebar.close();
+    await mymap.photosApplied;
+    expect(mymap.hasLayer(mymap.layerCache[102].dataLayer)).toBe(true);
+
+    persist.checked = false;
+    await persist.onchange();
+    expect(mymap.hasLayer(mymap.layerCache[102].dataLayer)).toBe(false);
+    expect(mymap.dimData.visibleLayers.has(102)).toBe(false);
   });
 });

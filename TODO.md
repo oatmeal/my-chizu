@@ -6,7 +6,7 @@
 
 ## Features
 
-- Add a feature to display screenshots pinned at where they were taken (possibly with a small arrow to display direction?). What metadata to include with screenshots? (e.g. who is present in the screenshot) Open question: how to interact with the timeline?
+- **Screenshot photo layer** — display screenshots pinned where they were taken, filtered by the timeline. Designed in `PLAN_PHOTOS.md`; not started. The original open questions (what metadata to carry, how it interacts with the timeline) are answered there; the ones still open are listed at the end of that doc.
 
 ## Robustness
 
@@ -15,7 +15,7 @@
 
 ## Testing
 
-- **No DOM-level coverage of the timeline builder** — `vite.config.js` sets `environment: "node"`, and `setupTimeline.test.js` only covers `getTileReplacements`. The DOM-building `setupTimelinePanel` is untested, so the wiring between an entry's fields and the rendered `<a href>` (e.g. `vodUrl(vod.id, vod.t)` at `setupTimeline.js:196`) is verified only by reading. Standing up jsdom for this suite would also cover the year/month group assembly and the date/VOD interleaving.
+- **No DOM-level coverage of the timeline builder** — `vite.config.js` sets `environment: "node"`, and `setupTimeline.test.js` only covers `getTileReplacements`. The DOM-building `setupTimelinePanel` is untested, so the wiring between an entry's fields and the rendered `<a href>` (`vodUrl(vod.id, vod.t)` at `setupTimeline.js:189`) is verified only by reading, as is the year/month group assembly. The date/VOD interleaving no longer needs jsdom — it moved to `buildTimelineEntries` in `lib/timeline.js` and is covered there. `setupLayers.js` is covered by stubbing Leaflet and the DOM rather than standing up jsdom; the same approach would work here.
 - **No tests for `scripts/sync-vods.mjs`** — the known/stale/dedupe logic is untested, which is why a `?t=` suffix on an id silently became a duplicate-append path. `scripts/vodTitle.js` is the only part of the sync tooling with coverage. A cheap id-shape guard that flags a malformed id in `vods.json` would catch that class of mistake at sync time.
 
 ## Cleanup
@@ -28,7 +28,7 @@
 
 ## Code Smells
 
-- **Hardcoded layer type detection** — `setupLayers.js:34` checks `url.endsWith("gate.json") || url.endsWith("bastion.json")` for z-index boosting. Fragile if naming changes; consider using layer metadata instead.
+- **Hardcoded layer type detection** — `setupLayers.js:41` checks `url.endsWith("gate.json") || url.endsWith("bastion.json")` for z-index boosting: the engine reaching into a data repo's filenames. A `zIndex` field on the layer JSON would do it properly. The photo layer will want a z-order of its own, which is the point at which this is worth fixing. Pinned by tests in `setupLayers.test.js`, so a fix has to update them deliberately.
 - **Coordinate clamping duplicated 3 times** in `setupCoordinates.js` (lines 87-88, 168-169, 214-215). Could extract a small `clampCoord(value, min, max)` helper.
 
 ## In-Code TODOs
@@ -39,10 +39,10 @@ These are enhancement ideas noted in comments throughout the codebase:
 - `setupBase.js:125` — Grid layer z-index ordering
 - `setupBase.js:136-138` — Grid layer performance (Chrome lag) and display improvements
 - `setupCoordinates.js:3-6` — Allow creating/saving multiple markers per dimension; store in hashObj or JSON
-- `setupLayers.js:5` — Color styling via layer fraction is a hack
-- `setupLayers.js:26,46,51` — Add more info to marker/line popups; show interpolated coordinates of clicked polyline point
-- `setupLayers.js:33` — Hardcoded z-index offset (1000) for gate/bastion markers
-- `setupLayers.js:129` — Handle navigating to a marker whose layer isn't displayed (temporary marker?)
+- `setupLayers.js:8` — Color styling via layer fraction is a hack
+- `setupLayers.js:33,60,65` — Add more info to marker/line popups; show interpolated coordinates of clicked polyline point
+- `setupLayers.js:41` — Hardcoded z-index offset (1000) for gate/bastion markers
+- `setupLayers.js:162` — Handle navigating to a marker whose layer isn't displayed (temporary marker?)
 - `map.js:235` — Nether polyline styling not defined
 - `map.js:422,424` — Other settings not saved in hash; zoom 3 workaround unexplained
 - `setupPermalink.js:48` — Other settings not included in permalink

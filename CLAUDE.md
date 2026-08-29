@@ -70,7 +70,9 @@ lib/
   map.js               # Main application logic — wires together the modules below
   hash.js              # URL hash parsing (pure, tested)
   tileDate.js          # Tile date selection for exact/fill/before modes (pure, tested)
-  timeline.js          # Date formatting and timeline group summary (pure, tested)
+  timeline.js          # Date formatting, group summaries, timeline entry merge (pure, tested)
+  setupLayers.js       # Leaflet layer rendering, dispatched on content kind (tested)
+  setupTimeline.js     # Timeline panel DOM; getTileReplacements (partly tested)
   *.test.js            # Vitest unit tests alongside each module
 static/                # HTML template, CSS, icons, YouTube branding
   index.html           # Contains ***TOKEN*** placeholders for site-specific content
@@ -81,6 +83,8 @@ vite.config.js         # Vite/Vitest configuration
 .github/workflows/
   build.yml            # Reusable GHA workflow: build + deploy to GitHub Pages
 notes.md               # Internal data structure documentation
+TODO.md                # Known bugs, gaps and in-code TODOs
+PLAN_PHOTOS.md         # Design for the screenshot photo layer (not started)
 ```
 
 ## Data Repo Interface
@@ -165,7 +169,9 @@ jobs:
 
 **URL state:** Hash-based (`#d=o&dD={...}`) — permalink panel encodes current view.
 
-**Layer JSON format:** `{ id, name, dimension, markers[], lines[] }` — see `notes.md` for full schema.
+**Layer JSON format:** `{ id, name, dimension, markers[], lines[] }` — see `notes.md` for full schema. A layer file may carry any combination of content arrays; `RENDERERS` in `lib/setupLayers.js` maps each key to the function that draws it, so a new kind of content is an entry there rather than a branch. `id` must be a **number** and unique across *all* dimensions — `build-data.mjs` collects ids in one dict for the whole build and sorts layers numerically.
+
+**Adding a timeline entry kind:** `buildTimelineEntries()` in `lib/timeline.js` merges the tile dates with any number of pre-sorted streams (VODs today), and `SUMMARY_KINDS` in the same file drives the per-month counts. Both take new kinds without a signature change.
 
 **VOD links:** `vods.json` entries link to YouTube. `vodUrl()` / `vodIconHtml()` in `lib/timeline.js` are the only places the provider is named, so pointing the timeline elsewhere means changing those two functions and `static/youtube.svg`.
 

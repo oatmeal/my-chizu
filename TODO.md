@@ -2,6 +2,8 @@
 
 ## Bugs
 
+- A photo pin wearing a hovered row's thumbnail says nothing about whether *that* photo is present or future. `photo-pin-dim` is a cluster-level fact — set when every photo in the cluster postdates the selected date — and `.photo-pin-highlight img` restores `opacity: 1` for the duration of a hover anyway, so in fill mode a pin can show a future photo at full opacity while its `3+2` badge says only that the split exists, not which side the row is on. The hovered row in the pane does carry `.photos-item-dim`, so the answer is on screen, just not on the pin. Fixing it properly means a per-photo dim class on the pin's `<img>` rather than the cluster's wrapper, which the badge would then want to agree with.
+
 - In the timeline view, using the keyboard up/down to navigate between radio options skips the items that are inside collapsed `<details>` blocks. If modifying this requires Javascript to intercept keyboard events then it's probably not worth changing.
 
 ## Features

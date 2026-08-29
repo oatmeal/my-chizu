@@ -1,12 +1,15 @@
 # Screenshot photo layer — design doc
 
-Status: **Phases 0–2.5 are built, and viewer v1 has had its first review
-pass.** The extraction pipeline, the encoded photo set, the layer, the
-clustering, the lightbox, the photos pane and the timeline interaction all exist
-and are covered by tests. What remains is Phase 3 (photo review in the
-`mc-screenshot-to-map` web app) and Phase 4 (OCR, to bring in the screenshots
-whose filenames carry no coordinate). Nothing is committed to `llmr` yet — see
-"Previewing before you commit".
+Status: **Phases 0–3 are built and the first photo set is live.** The
+extraction pipeline, the encoded photo set, the layer, the clustering, the
+lightbox, the photos pane, the timeline interaction and the review app all
+exist and are covered by tests. 280 photos were reviewed — 265 approved, 15
+held — and the 265 are committed to `llmr`. What remains is Phase 4 (OCR, to
+bring in the screenshots whose filenames carry no coordinate).
+
+That a photo reaches the map only after review is now enforced rather than
+remembered: for a photo, *public* means **committed**, and the review queue is
+derived from `git ls-files`.
 
 The review pass changed six things, each recorded in its own section below:
 photos are switched on from the photos tab rather than from the layers panel;
@@ -25,19 +28,23 @@ This doc is the shared context across sessions. When something here is settled
 by writing code, update the section rather than leaving the doc describing a
 plan the code no longer follows.
 
-Two repos are involved:
+**This is the viewer's half of the design.** Two repos are involved and the
+split is clean:
 
-- `mc-screenshot-to-map` — extraction: classify raw files, read coordinates and
-  timestamps, crop and encode. Everything here is derived and reproducible.
-  - `screenshots.py` — classification, chrome detection, photo records, encoding
-  - `scripts/build_photos.py` — the entry point that writes into `llmr`
-  - `metadata/photo_overrides.csv` — the hand corrections
-  - `tests/test_screenshots.py` — 54 tests
-- `my-chizu` (this repo) — the viewer: the photo layer, its timeline behaviour,
-  and the lightbox. Engine-generic; `llmr` supplies the data.
-  - `lib/photos.js` — pure logic, 37 tests
-  - `lib/setupPhotos.js` — layer, lightbox, pane, 47 tests
-  - photo coverage in `test/init-integration.test.js` — 15 tests
+- `my-chizu` (this repo) — the viewer: the photo layer, its clustering, its
+  timeline behaviour and the lightbox. Engine-generic; `llmr` supplies the data.
+  `lib/photos.js` is the pure logic, `lib/setupPhotos.js` the layer, lightbox
+  and pane, with coverage in `test/init-integration.test.js`.
+- `mc-screenshot-to-map` — extraction and review: classify the raw files, read
+  coordinates and timestamps, crop, encode, record what a person decided, and
+  publish. Documented **there**: its `CLAUDE.md` carries the reasoning, its
+  `README.md` the commands, its `PLAN_DEPLOY.md` §10 the UI backlog, and the
+  constants that encode hard-won measurements sit in the code beside them.
+
+What stays here is the **data contract** between the two — `photos.json`, and
+what the viewer may assume about it — plus everything downstream of it. Where a
+section below is about the other repo it is a summary with a pointer, not the
+record; keep it that way.
 
 ## Goal
 
@@ -56,99 +63,64 @@ Measured over `../raw` by `build_photos.py --survey`, 2026-08. 5,760 images:
 | `photo` | 297 | loose, named for a world coordinate |
 | `unknown` | 214 | loose, named descriptively — waiting on OCR |
 
-Two corrections to the first pass of these numbers, both of which moved photos
-*out* of the set and are the reason to run the classifier rather than a glob:
-
-- `raw_identity.csv` already claims 182 oddly-named loose files as map tiles —
-  `20211012/IMG_0400.PNG` looks like a phone photo and is a zoom-4 map
-  screenshot. Content matching outranks any name rule, so it is checked first.
-- A filename coordinate under `TILE_COORD_MAX` (200) is a tile index, not a
-  player position. 45 loose files are tiles by that rule.
-
-**297 world-coord photos become 280.** 17 files carry a `c` suffix and are
-hand-cropped duplicates — `6956x744zc.png` is 1919×1005 against its sibling's
-1920×1080, someone having de-chromed it by hand and slightly wrong. The
-uncropped original wins and the pipeline crops it consistently. The other
-variants (`za`, `zb`, `z-1`, `z2`) are genuinely different shots from one spot
-and stay.
+**297 world-coord photos become 280**, after dropping the `c`-suffix files as
+hand-cropped duplicates of their siblings. Two name rules move files *out* of
+the photo set and are why the classifier is run rather than a glob:
+`raw_identity.csv` claims 182 oddly-named loose files that content matching has
+already proved are map tiles, and a filename coordinate under `TILE_COORD_MAX`
+is a tile index rather than a player position. The rules and their evidence are
+in `screenshots.py`; re-derive the counts with `build_photos.py --survey`.
 
 ### Dates
 
 **372 tile dates against 120 photo dates, overlapping on 101.** Only **19 photo
 dates have no tiles at all**, carrying 45 photos between them.
 
-This is the one place the original design was substantially wrong. It predicted
-"198 of 217 dates have no map tiles" against "a current timeline of 76 tile
-dates" — but that counted every raw folder including the chat-only and
-descriptively-named ones, and the map has since grown to 372 dates. The
-world-coord photos come from sessions where somebody was actively mapping, so
-they land on tile dates far more often than the whole raw set would.
-
-The photo-only row type is still needed and still built; it is just 19 rows
-rather than the majority of the timeline.
+The original design predicted the photo-only row would be most of the timeline;
+it is 19 rows. World-coord photos come from sessions where somebody was
+actively mapping, so they land on tile dates far more often than the whole raw
+set would. The row type is still needed and still built — it is just rare, and
+that is what makes each tile date's own `(📷n)` count the load-bearing part
+rather than the extra row.
 
 ## Window chrome and the crop
 
-Screenshots are 1920×1080 desktop captures with Windows chrome, from **two
-machine generations**, which the original design did not know about:
+*Extraction. Detail and constants: `screenshots.detect_chrome`.*
 
-| | title bar | taskbar | files |
-|---|---|---|---|
-| Windows 10 | 32px, `#000000` | 40px, `#2D2D2D` | 237 |
-| Windows 11 | 23px, translucent | 47px, translucent | 26 |
+The screenshots are 1920×1080 desktop captures from two machine generations, so
+they carry a Windows title bar and taskbar that have to come off. The heights
+are bimodal with nothing between the modes — title bars 32px (Win10) or 23px
+(Win11), taskbars 40px or 47px — and only those four are accepted.
 
-The heights are bimodal with nothing between the modes, which is what makes an
-exact-height rule safe.
+Two properties of it are worth knowing on this side, because they decide what
+the viewer is handed:
 
-**The Windows 11 bars have no colour of their own.** They are translucent and
-take their tint from whatever the game is drawing behind them — the same
-taskbar measures 33 over a nether tunnel, 41 over a desert and 44 over an
-ocean. A fixed-colour test finds none of them.
+- **Neither bar can be found by colour.** The Win11 pair is translucent and
+  takes its tint from whatever the game draws behind it; the Win10 taskbar
+  renders `#2D2D2D` with an acrylic noise no per-pixel tolerance matches. Both
+  are found as a *flat horizontal band whose rows share one colour*, ending at
+  a row that does not.
+- **The rule refuses rather than guesses.** A band that is bar-shaped but not a
+  real height crops nothing and is flagged. That matters because the failure it
+  avoids is severe: a night or cave screenshot has a genuinely black sky, and a
+  greedy "consume leading black rows" scan ate 82, 99, 125 and 214 rows of game
+  content.
 
-**And the Windows 10 taskbar is not flat either.** It means `#2D2D2D`, but
-renders with a faint acrylic noise: its pixels run 36–61 over a span whose mean
-sits at 44.2–44.3 with σ 4.4–4.5. A per-pixel tolerance can never match it.
+Result: **272 of 280 cropped, 7 flagged, 1 left whole deliberately.** So the
+photo set is not uniform in aspect ratio: most images are 1920×1008 before
+scaling, and eight keep their chrome. Nothing in the viewer may assume a common
+shape, and nothing does: the pin is a fixed 56px box with `object-fit: cover`,
+and the lightbox is `max-width`/`max-height` with `object-fit: contain`.
 
-So both bars are found the same way, by the one property both actually have:
-**a bar is a flat horizontal band whose rows share one colour, ending at a row
-that does not.** Concretely, in `detect_chrome`:
-
-- Compare each row's mean colour, per channel, across a span clear of the bar's
-  own contents — the window title and buttons, the taskbar icons and clock.
-  The buttons reach further in than they look: a span ending at x=1700 clipped
-  them on six files and cost those files their crop.
-- Judge flatness against the band's **median** row, not its first, so an
-  overlay cannot disqualify a real bar. A notification toast sat over one
-  taskbar and a strict all-rows test threw the whole thing away.
-- Accept only the four real heights above. Anything else crops nothing and is
-  flagged.
-- The Windows 10 title bar keeps a dedicated pure-black test as well, because
-  it is the one case where the row *below* the bar may legitimately be dark —
-  a cave ceiling — and the general test would read that as more bar.
-
-**This is what stops the overshoot the original design warned about.** A night
-or cave screenshot has a genuinely black sky, and a greedy "consume leading
-black rows" scan ate 82, 99, 125 and 214 rows of game content. Four files here
-have leading black runs of 41, 60, 67 and 70 rows; none of those is a real
-height, so none of them is cropped.
-
-Result: **272 of 280 cropped, 7 flagged, 1 left whole deliberately.** Six of
-the seven flagged are files somebody had already hand-cropped years ago. The
-deliberate one is `20230920/6955x819z.png`, where the game content directly
-under the title bar is itself pure black, so the ambiguity guard fires — the
-conservative outcome the rule exists to produce.
-
-**Order still matters: OCR the taskbar clock before cropping it away.** The
-clock is legible in both generations and is the only source of wall-clock time.
-Roughly 40 files have no taskbar at all and have nothing beyond their folder
-date.
+**Order matters: OCR the taskbar clock before cropping it away.** The clock is
+legible in both generations and is the only source of wall-clock time; roughly
+40 files have no taskbar at all and have nothing beyond their folder date.
 
 ## Storage
 
 The encoded set is **35 MB** — 32.1 MB of full images at 1600px q80 and 2.9 MB
-of 400px q72 thumbnails, mean 115 KB per photo. `llmr/deploy` goes from 223 MB
-to 269 MB, about a quarter of the GitHub Pages 1 GB cap. The full raw PNGs for
-these 280 files are just over 400 MB.
+of 400px q72 thumbnails, mean 115 KB each. That takes `llmr/deploy` from 223 MB
+to 269 MB, about a quarter of the GitHub Pages 1 GB cap.
 
 **Decision: one repo, no split.** At this rate it is a decade of headroom, and
 a second repo costs two deploys to keep in sync. Bandwidth is not a concern
@@ -171,19 +143,22 @@ stays that way; the deploy artifact is the derived WebP.
 
 ### Previewing before you commit
 
-**Nothing has to be committed to see the real thing.** `build_photos.py --write`
-puts the WebP pairs and the layer JSONs into the `llmr` working tree, and the
-`my-chizu` build copies them into `llmr/deploy/`, which is gitignored. So the
-whole feature can be run, looked at and thrown away without touching git:
+**Nothing has to be committed to see the real thing.** The extractor builds into
+a tree of its own, the publish step copies into `llmr`'s working tree, and the
+site build copies from there into the gitignored `llmr/deploy/`. So the whole
+feature can be run, looked at and thrown away without touching git:
 
 ```bash
-# 1. encode into the llmr working tree (writes ~35 MB, commits nothing)
-cd mc-screenshot-to-map && uv run python scripts/build_photos.py --write
+# 1-3. build, review and publish -- see mc-screenshot-to-map's README
+cd mc-screenshot-to-map
+uv run python scripts/build_photos.py --write
+uv run python -m uvicorn web.app:app --reload      # http://localhost:8000/photos
+uv run python scripts/deploy_photos.py --apply
 
-# 2. build the site
+# 4. build the site
 cd ../my-chizu && node build.mjs ../llmr
 
-# 3. serve it
+# 5. serve it
 python -m http.server --directory ../llmr/deploy 8000
 ```
 
@@ -207,25 +182,23 @@ the design:
   pins stay, and the permalink then reproduces them.
 
 To undo it entirely: `git clean -nd` in `llmr` to see the untracked photo files,
-then `git clean -fd` once the list looks right.
+then `git clean -fd` once the list looks right. The build tree is outside every
+repo and can simply be deleted.
 
 ### Then committing
 
 `llmr/.git` is 185 MB, and it is that small only because the tiles were written
 once. Each re-encode of the photo set adds another ~35 MB of blobs permanently.
 **Settle the encoding before the first commit** — revision three is what hurts,
-not the import. A 30-file sample at the candidate settings is one command:
+not the import. The current setting is WebP, long edge 1600, q80, plus a 400px
+q72 thumbnail; Minecraft's flat-shaded art is close to a best case for WebP.
 
-```
-uv run python scripts/build_photos.py --sample 30   # → scratch/photo_sample/
-```
-
-The current setting is WebP, long edge 1600, q80, plus a 400px q72 thumbnail.
-Minecraft's flat-shaded art is close to a best case for WebP.
-
-Note that `mc-screenshot-to-map/scratch/` is untracked but **not** gitignored,
-and a sample run leaves tens of MB in it. Ignore it before someone commits it
-by accident.
+This is no longer only a discipline to remember. For a photo, *public* means
+**committed**, and the review app derives its queue from `git ls-files` — so
+nothing reaches a commit unreviewed, the review page leads with the compression
+difference at ×8, and a decision's digest covers the encoded bytes, so a
+re-encode at different settings invalidates every approval rather than
+inheriting it. See `mc-screenshot-to-map/CLAUDE.md`.
 
 ## Data format
 
@@ -282,29 +255,21 @@ nether and end rendering to make sure it stays that way.
 ### Deciding which dimension a photo is in
 
 Not recoverable from a filename, and a defaulted nether photo lands 8× out of
-place *silently*. So `suggest_dimension` asserts only the case it can argue:
+place *silently*. So `suggest_dimension` asserts only the case it can argue — a
+world-scale coordinate far outside anything the nether reaches is overworld —
+and calls everything else **unknown** rather than guessing. In particular a
+small coordinate whose ×8 lands inside the mapped overworld is exactly what a
+nether screenshot looks like: `20220929/816x60z.png` becomes (6528, 480), the
+main base.
 
-- A world-scale coordinate, far outside anything the nether reaches → overworld.
-- A small coordinate whose ×8 lands inside the mapped overworld → **unknown**.
-  This is the inverse of the nether scale, and it is exactly what a nether
-  screenshot looks like: `20220929/816x60z.png` becomes (6528, 480), the main
-  base.
-- Any other small coordinate → **unknown**.
+That flagged 27 files, all since resolved by hand into `photo_overrides.csv`:
+**17 nether, 10 overworld, 0 left unknown.** How they were settled, and the ×8
+review that now draws the test instead of asking somebody to imagine it, are in
+`mc-screenshot-to-map/CLAUDE.md`; the per-file evidence is the `note` column of
+`photo_overrides.csv`, which is what that file is for.
 
-That flagged 27 files. All 27 were opened and resolved by hand into
-`photo_overrides.csv`: **17 nether, 10 overworld, 0 left unknown.** What settled
-them:
-
-- Netherrack, basalt, soul sand valley fog and lava seas are unmistakable.
-- **Y is decisive in one direction.** `20220521/578x-96z.png` reads
-  `位置: 578, -2, -96`, and Y=−2 is below the nether's bedrock floor, so that
-  one is an overworld deep cave however dark it looks.
-- **Corridors give each other away.** Several files share Z=59 across four
-  years — `-523x59z`, `216x59z`, `484x59z` — which is one nether highway. A
-  sandstone-lined stretch of it looks nothing like netherrack on its own.
-- **Sessions give each other away.** `20240616/1521x66z.png` is a stone-brick
-  tunnel with a camel in it and could be anywhere; `1909x67z.png` from the same
-  session shows the same tunnel with a netherrack ceiling and the same camels.
+**An unplaced photo cannot be published.** The publish plan blocks on it, so the
+viewer never receives a photo whose dimension nobody could argue for.
 
 ## Viewer
 
@@ -501,59 +466,36 @@ them: the timeline's judgement is about what to *show*, not about what to hide.
 
 ## Photo review in the web app
 
-**Phase 3.** `mc-screenshot-to-map` already has a review UI for map tiles —
-FastAPI + Jinja2 at `web/app.py`, with a queue, a per-date page, a per-tile
-page and a deploy page. Photos should join it rather than grow a second review
-surface, because the two need the same things: look at a derived artefact
-beside its source, record a human judgement, and never let that judgement
-outlive the pixels it was made about.
+**Phase 3 — built, in `mc-screenshot-to-map`.** Photos joined the existing tile
+review app rather than growing a second review surface, and reuse its decision
+states (`approved` / `hold` / `rejected` / undecided), its digest rule and its
+plan-then-confirm deploy.
 
-Today the photo pipeline has no review step at all. Its human decisions live in
-`metadata/photo_overrides.csv`, hand-edited, which was the right call for 27
-dimension corrections and will not survive the OCR phase.
+What matters from this side of the fence is what the viewer can now rely on:
 
-### What it should reuse
+- **Nothing reaches `photos.json` unreviewed.** The layer file is rewritten from
+  the set a person has approved, so a photo on the map has been looked at.
+- **A published photo is not withdrawn by a later rejection.** Taking one down
+  is a separate, deliberate act; the plan warns rather than doing it silently.
+- **`photos.json` is rewritten, never merged**, because a photo is only on the
+  map if the layer lists it — unlike a tile, which the site build discovers by
+  globbing filenames.
+- **Placement is inside the decision digest**, not just the pixels. The same
+  image at a nether coordinate instead of an overworld one is a different thing
+  on the map, so correcting a dimension invalidates the approval.
 
-- **`metadata_store.py` decision states.** `approved` / `hold` / `rejected` /
-  undecided carry over unchanged. A photo on `hold` means looked at, known
-  imperfect, no better version — an uncropped screenshot whose chrome the rules
-  refused to guess at is exactly that, and it should still ship.
-- **The digest rule.** Every tile decision records the digest of the tile it was
-  made about, so a re-extraction that changes the pixels drops it back into the
-  queue instead of inheriting an approval made about a different image. Photos
-  need this *more* than tiles do, because the encoder settings are still in
-  play: a re-encode at a different quality must not silently keep its approvals.
-- **The deploy page's shape.** `/deploy` shows new / replace / identical, blocks
-  on problems, and commits nothing. The photo import wants precisely that, and
-  it is where the "settle the encoding before the first commit" discipline
-  should be enforced rather than remembered.
-- **The compare widget** (`web/static/compare.js`), for the one comparison that
-  matters here: the raw PNG against the encoded WebP, to judge the quality
-  setting on real content instead of on a file listing.
+The three views it puts in front of a person — the crop, the compression
+difference against the encoder's own input, and the deployed map drawn around
+the coordinate at both scales — are described in
+`mc-screenshot-to-map/CLAUDE.md` under "Photo review", with the commands in its
+`README.md` and the remaining UI backlog in its `PLAN_DEPLOY.md` §10.
 
-### What is new
-
-- **A crop review.** The 7 files `detect_chrome` flags, and any future flag, laid
-  out with the detected band drawn on the image. The decision is usually "the
-  rule was right to refuse", which is an `approve`, not a fix.
-- **A dimension review.** The one that cannot be automated and the one that goes
-  silently wrong. It wants the photo, its coordinate, its ×8 coordinate, and
-  what is at both places on the map — the ×8 test is what identified the nether
-  photos, and showing it is more useful than asking someone to imagine it.
-- **A position review, once OCR lands.** An OCR'd coordinate is a claim
-  about where a screenshot was taken and there is nothing to check it against,
-  so the review is "does this photo look like it belongs at this spot on the
-  map" — the photo beside the deployed tile for its coordinate and date.
-- **Writing back to `photo_overrides.csv`** rather than to a new store, so the
-  hand corrections stay one reviewable file in git and the diff stays the audit
-  trail.
-
-### The ordering argument
-
-Build this **before** OCR, not after. OCR is what will produce review work
-at volume — 214 files with machine-read coordinates, each unverifiable — and
-building the reviewer first means that output has somewhere to land the day it
-exists. Doing it the other way round means hand-editing a CSV against 214 rows.
+**A position review still has to be built, and it is Phase 4 work.** An OCR'd
+coordinate is a claim about where a screenshot was taken with nothing to check
+it against, so the review is "does this photo look like it belongs at this spot
+on the map". The map-excerpt machinery already exists; what is missing is the
+photo beside it and a coordinate that came from the HUD rather than the
+filename.
 
 ## Rejected
 
@@ -578,13 +520,18 @@ turns up.
 - **Phase 2.5 — nether and end photos.** *Done for the nether* (17 photos), and
   it was a data change and nothing else, as intended. No end photos exist yet;
   the id (202) is reserved and the code path is the same one.
-- **Phase 3 — photo review in the web app.** See "Photo review in the web app"
-  above. This and OCR were the other way round in the original plan; they are
-  swapped deliberately, because OCR is what produces review work at volume and
-  building the reviewer second means hand-editing a CSV against 214 rows.
+- **Phase 3 — photo review in the web app.** *Done*, in `mc-screenshot-to-map`.
+  First pass through it: 265 approved, 15 held, 265 published. This and OCR were
+  the other way round in the original plan; they were swapped deliberately,
+  because OCR is what produces review work at volume and building the reviewer
+  second means hand-editing a CSV against 214 rows.
 - **Phase 4 — OCR.** HUD coordinates and the taskbar clock, bringing in the 214
-  descriptively-named screenshots and giving the existing 280 a wall-clock time.
-  Crop the clock *after* reading it.
+  descriptively-named screenshots and giving the existing 280 a wall-clock time
+  and a real `y`. Crop the clock *after* reading it. **Almost entirely
+  `mc-screenshot-to-map` work**: `photoCaption` already renders `time` and
+  already drops `y` when it is null, so populating either needs no viewer
+  change. What does land here is the open question below — what to do with the
+  photos OCR dates but cannot place.
 
 ## Open questions
 

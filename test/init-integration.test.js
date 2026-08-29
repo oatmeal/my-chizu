@@ -41,7 +41,7 @@ const overworldDim = makeDimData({
     { id: 1, name: "Test Layer", url: "data/overworld/test.json" },
     {
       id: 102,
-      name: "スクリーンショット",
+      name: "写真",
       url: "data/overworld/photos.json",
       // `build-data.mjs` copies this out of the layer file so the viewer can
       // tell a photo layer from a marker layer before fetching either.
@@ -76,7 +76,7 @@ const layerData = {
 
 const photoLayerData = {
   id: 102,
-  name: "スクリーンショット",
+  name: "写真",
   kind: "photos",
   photos: [
     { f: "20240101/a", date: "20240101", pos: [0, 64, 0], src: "filename" },

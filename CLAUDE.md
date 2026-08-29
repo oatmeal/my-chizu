@@ -198,7 +198,10 @@ it up past a close. Visibility still rides `visibleLayers` and the permalink
 hash. This is why `build-data.mjs` copies each layer file's `kind` into the
 dimension metadata: the viewer has to know a photo layer before it fetches one.
 Hovering a pin or a pane row fires `photohighlight` with a set of photo stems,
-which both renderings listen for.
+which both renderings listen for. A pane row also names its own stem as `show`,
+and the pin holding it wears that photo's thumbnail for the duration of the
+hover — in a deep cluster the pin's lead is almost never the row you are
+pointing at, so an outline alone would not say which image is which.
 
 **Photo permalinks:** the lightbox's 「リンクをコピー」 button builds a link whose
 `ph` hash key is the photo's file stem, alongside coordinates centred on the

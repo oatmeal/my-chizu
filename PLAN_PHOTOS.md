@@ -177,7 +177,8 @@ the design:
   on each date's own row.
 - **Switch to the nether.** 17 photos, positioned by the same code.
 - **Pan with the photos tab open**; the list re-filters to the viewport.
-- **Hover a row, then hover a pin.** Each should mark the other.
+- **Hover a row, then hover a pin.** Each should mark the other, and a row
+  hover should also put that row's photo on its pin until the cursor leaves.
 - **Tick 「このタブを閉じても写真を地図に表示し続けます」** and close the tab; the
   pins stay, and the permalink then reproduces them.
 - **Press 「リンクをコピー」 in the lightbox** and open the copied URL in a fresh
@@ -207,7 +208,7 @@ inheriting it. See `mc-screenshot-to-map/CLAUDE.md`.
 `data/[dim]/photos.json`, alongside the existing layer files:
 
 ```json
-{ "id": 102, "name": "スクリーンショット", "dimension": "overworld",
+{ "id": 102, "name": "写真", "dimension": "overworld",
   "kind": "photos",
   "photos": [
     { "f": "20240828/6827x740z", "date": "20240828",
@@ -289,7 +290,7 @@ ordinary layer with an ordinary checkbox, which is what the plumbing wanted —
 the layers panel, `visibleLayers` and its hash persistence all came free. But it
 is the wrong shape for the visitor: photos are a *mode of looking* at the map
 rather than one overlay among the rail lines and the nether gates, and asking
-someone to find a checkbox in one tab before the tab named 「スクリーンショット」
+someone to find a checkbox in one tab before the tab named 「写真」
 does anything is a puzzle, not a control.
 
 So: opening the photos tab puts the pins up, closing it takes them down, and a
@@ -395,6 +396,14 @@ and each side listens, and neither has to know the other exists.
 The z-index bump matters more than the outline. Given the concentration, the pin
 a row belongs to is often *underneath* a neighbour, and an outline you cannot see
 answers nothing.
+
+**And the pin wears the row you are pointing at.** A row hover names its single
+stem alongside the set, and the pin swaps its thumbnail to that photo until the
+cursor leaves. Without it the link is only half made: a pin wears its lead photo,
+and in a 201-deep cluster that is almost never the row under the cursor, so the
+outline said *which stack* and left the visitor to guess which of the 201 images
+it was standing in for. Only photos listed in the pane can be named this way and
+the pane is already showing their thumbnails, so the swap is a cache hit.
 
 ### The lightbox
 

@@ -11,12 +11,36 @@ import {
   DIM_NETHER,
   DIM_END,
   DIM_NAMES,
-  NETHER_SCALE,
+  dimScale,
   dimTilePath,
 } from "./lib/dimensions.js";
 
 function mod(a, b) {
   return ((a % b) + b) % b;
+}
+
+/**
+ * Extend a bounding box in place to cover a set of Minecraft [X, Z] points.
+ *
+ * Points arrive in dimension-native coordinates, so nether ones are scaled up
+ * to their overworld equivalent — every dimension's bounds share one frame.
+ * This is the only place in the build that applies the nether scale, which is
+ * what keeps dimension math out of each individual caller.
+ *
+ * @param {{minX: number, maxX: number, minZ: number, maxZ: number}} bounds
+ * @param {Array<[number, number]>} points - [X, Z] pairs, dimension-native
+ * @param {string} dim - short dimension code
+ */
+function extendBounds(bounds, points, dim) {
+  const scale = dimScale(dim);
+  for (const [x, z] of points) {
+    const X = x * scale;
+    const Z = z * scale;
+    if (X < bounds.minX) bounds.minX = X;
+    if (X > bounds.maxX) bounds.maxX = X;
+    if (Z < bounds.minZ) bounds.minZ = Z;
+    if (Z > bounds.maxZ) bounds.maxZ = Z;
+  }
 }
 
 const dataDir = resolve(process.argv[2]);
@@ -72,10 +96,7 @@ for (const dim of [DIM_OVERWORLD, DIM_NETHER, DIM_END]) {
   const dates = new Set();
   let minZoom = 99;
   let maxZoom = -99;
-  let minX = 1e8;
-  let maxX = -1e8;
-  let minZ = 1e8;
-  let maxZ = -1e8;
+  const bounds = { minX: 1e8, maxX: -1e8, minZ: 1e8, maxZ: -1e8 };
   const fileCoordsDict = new Set();
   const tileDirName = dimTilePath(dim);
   for (const fn of await fg(
@@ -108,10 +129,10 @@ for (const dim of [DIM_OVERWORLD, DIM_NETHER, DIM_END]) {
       let maxXTile = minXTile + width - 1;
       let maxZTile = minZTile + width - 1;
 
-      if (minXTile < minX) minX = minXTile;
-      if (maxXTile > maxX) maxX = maxXTile;
-      if (minZTile < minZ) minZ = minZTile;
-      if (maxZTile > maxZ) maxZ = maxZTile;
+      if (minXTile < bounds.minX) bounds.minX = minXTile;
+      if (maxXTile > bounds.maxX) bounds.maxX = maxXTile;
+      if (minZTile < bounds.minZ) bounds.minZ = minZTile;
+      if (maxZTile > bounds.maxZ) bounds.maxZ = maxZTile;
     }
   }
 
@@ -138,36 +159,19 @@ for (const dim of [DIM_OVERWORLD, DIM_NETHER, DIM_END]) {
     });
 
     if (over.markers) {
-      for (const d of over.markers) {
-        let XMarker = d.pos[0];
-        let ZMarker = d.pos[2];
-        if (dim === DIM_NETHER) {
-          XMarker *= NETHER_SCALE;
-          ZMarker *= NETHER_SCALE;
-        }
-        if (XMarker < minX) minX = XMarker;
-        if (XMarker > maxX) maxX = XMarker;
-        if (ZMarker < minZ) minZ = ZMarker;
-        if (ZMarker > maxZ) maxZ = ZMarker;
-      }
+      extendBounds(
+        bounds,
+        over.markers.map(({ pos }) => [pos[0], pos[2]]),
+        dim
+      );
     }
 
-    // process polylines
     if (over.lines) {
-      for (const line of over.lines) {
-        for (const d of line.pts) {
-          let XMarker = d[0];
-          let ZMarker = d[2];
-          if (dimension === "nether") {
-            XMarker *= NETHER_SCALE;
-            ZMarker *= NETHER_SCALE;
-          }
-          if (XMarker < minX) minX = XMarker;
-          if (XMarker > maxX) maxX = XMarker;
-          if (ZMarker < minZ) minZ = ZMarker;
-          if (ZMarker > maxZ) maxZ = ZMarker;
-        }
-      }
+      extendBounds(
+        bounds,
+        over.lines.flatMap(({ pts }) => pts.map(([x, , z]) => [x, z])),
+        dim
+      );
     }
 
     // write minified JSON
@@ -299,10 +303,10 @@ for (const dim of [DIM_OVERWORLD, DIM_NETHER, DIM_END]) {
     maxZoom: maxZoom + 2,
     minNativeZoom: minZoom,
     maxNativeZoom: maxZoom,
-    minX: minX - 2 * maxWidth,
-    maxX: maxX + maxWidth,
-    minZ: minZ - maxWidth,
-    maxZ: maxZ + maxWidth,
+    minX: bounds.minX - 2 * maxWidth,
+    maxX: bounds.maxX + maxWidth,
+    minZ: bounds.minZ - maxWidth,
+    maxZ: bounds.maxZ + maxWidth,
     dates: sortedDates,
     fileDates: timeFileDict,
     layers: sortedLayers,

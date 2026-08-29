@@ -1,8 +1,16 @@
 # Screenshot photo layer — design doc
 
-Status: **design, nothing built.** This doc is the shared context across
-sessions. When something here is settled by writing code, update the section
-rather than leaving the doc describing a plan the code no longer follows.
+Status: **design; the engine prep is done, the feature is not started.** This
+doc is the shared context across sessions. When something here is settled by
+writing code, update the section rather than leaving the doc describing a plan
+the code no longer follows.
+
+Done so far: the refactors that give photos somewhere to attach — a renderer
+dispatch in `lib/setupLayers.js`, a pure `buildTimelineEntries` and a
+kind-keyed `SUMMARY_KINDS` in `lib/timeline.js`, `extendBounds` in
+`build-data.mjs` — plus a latent crash on a layer without markers, and a
+build-determinism fix. See "The seams are already in place" below. Nothing
+photo-specific exists yet: no extractor, no `photos.json`, no renderer.
 
 Two repos are involved:
 
@@ -217,6 +225,23 @@ ride it as a layer kind rather than a parallel system:
 legitimate exception is `dimScale()`, which already exists. If a second
 `dim === DIM_NETHER` appears anywhere in the photo code, something is wrong.
 
+### The seams are already in place
+
+The prep refactors landed, so each of these is now an entry in a list rather
+than new plumbing:
+
+- **Rendering** — add `{ key: "photos", render: renderPhotos }` to `RENDERERS`
+  in `lib/setupLayers.js`. `renderPhotos` receives `(mymap, data, dataLayer,
+  { url, fraction })` like its siblings, and `setupLayers.test.js` shows how to
+  test it without a browser.
+- **Timeline order** — pass a second stream to `buildTimelineEntries(dates, [...])`
+  in `lib/setupTimeline.js`, and switch on `kind` in the loop that follows.
+  The merge itself is pure and tested in `lib/timeline.js`.
+- **Month counts** — add `{ kind: "photo", icon: () => "📷" }` to `SUMMARY_KINDS`
+  in `lib/timeline.js`, and count it where `addVodEntry` counts VODs.
+- **Bounds** — one more `extendBounds(bounds, points, dim)` call in
+  `build-data.mjs`, next to the markers and lines calls.
+
 ### Three gotchas in the existing build
 
 1. **The glob will eat `photos.json` as a layer.** `data/[dim]/*.json` matches
@@ -233,11 +258,10 @@ legitimate exception is `dimScale()`, which already exists. If a second
 
 ### The one dimension-aware edit
 
-`build-data.mjs` computes each dimension's bounds by walking `over.markers` and
-`over.lines`, applying `NETHER_SCALE` as it goes. It does not know about a
-`photos` array, so photos would not extend the bounds. Extend that loop —
-it is the only place in the build where dimension math lives, and doing it once
-there is what keeps it out of everywhere else.
+`build-data.mjs` computes each dimension's bounds through `extendBounds`, which
+is where the nether scale is applied and the only place in the build that does
+dimension math. It is called for `over.markers` and `over.lines`; photos need a
+third call. Everything else stays dimension-blind.
 
 ## Extraction pipeline
 

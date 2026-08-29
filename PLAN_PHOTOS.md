@@ -1,23 +1,28 @@
 # Screenshot photo layer — design doc
 
-Status: **design; the engine prep is done, the feature is not started.** This
-doc is the shared context across sessions. When something here is settled by
-writing code, update the section rather than leaving the doc describing a plan
-the code no longer follows.
+Status: **Phases 0–2.5 are built.** The extraction pipeline, the encoded photo
+set, the layer, the clustering, the lightbox, the photos pane and the timeline
+interaction all exist and are covered by tests. What remains is Phase 3 (OCR,
+to bring in the screenshots whose filenames carry no coordinate) and Phase 4
+(chat logs). Nothing is committed to `llmr` yet — see "Before committing".
 
-Done so far: the refactors that give photos somewhere to attach — a renderer
-dispatch in `lib/setupLayers.js`, a pure `buildTimelineEntries` and a
-kind-keyed `SUMMARY_KINDS` in `lib/timeline.js`, `extendBounds` in
-`build-data.mjs` — plus a latent crash on a layer without markers, and a
-build-determinism fix. See "The seams are already in place" below. Nothing
-photo-specific exists yet: no extractor, no `photos.json`, no renderer.
+This doc is the shared context across sessions. When something here is settled
+by writing code, update the section rather than leaving the doc describing a
+plan the code no longer follows.
 
 Two repos are involved:
 
 - `mc-screenshot-to-map` — extraction: classify raw files, read coordinates and
   timestamps, crop and encode. Everything here is derived and reproducible.
-- `my-chizu` (this repo) — the viewer: a photo layer, its timeline behaviour,
+  - `screenshots.py` — classification, chrome detection, photo records, encoding
+  - `scripts/build_photos.py` — the entry point that writes into `llmr`
+  - `metadata/photo_overrides.csv` — the hand corrections
+  - `tests/test_screenshots.py` — 54 tests
+- `my-chizu` (this repo) — the viewer: the photo layer, its timeline behaviour,
   and the lightbox. Engine-generic; `llmr` supplies the data.
+  - `lib/photos.js` — pure logic, 31 tests
+  - `lib/setupPhotos.js` — layer, lightbox, pane, 28 tests
+  - photo coverage in `test/init-integration.test.js` — 11 tests
 
 ## Goal
 
@@ -27,383 +32,334 @@ that scrubbing time changes which photos exist, not just which tiles render.
 
 ## The source data
 
-Measured over `../raw`, 2026-08. 1,414 PNGs that are not map tiles, across 217
-date folders. **198 of those 217 dates have no map tiles at all**, against a
-current timeline of 76 tile dates and 124 VODs. Photos roughly triple the
-timeline's date count; most photo dates land on rows that do not exist today.
+Measured over `../raw` by `build_photos.py --survey`, 2026-08. 5,760 images:
 
-| Group | n | PNG | WebP 1600px q80 |
-|---|---|---|---|
-| Named by world coord (`6827x740z.png`) | 291 | 391 MB | 38 MB |
-| Chat logs (`chat1.png`) | 414 | 322 MB | 37 MB |
-| Named descriptively (`kadan1.png`, `1.png`, `IMG_0467.png`) | 581 | 302 MB | 37 MB |
-| **Total** | **1,286** | **1,015 MB** | **~112 MB** |
+| Category | n | How it is decided |
+|---|---|---|
+| `tile` | 4,835 | nested under a dimension folder, claimed by `raw_identity.csv`, or named for a tile index |
+| `chat` | 414 | `chat*.png` |
+| `photo` | 297 | loose, named for a world coordinate |
+| `unknown` | 214 | loose, named descriptively — Phase 3 |
 
-Mean 129 KB/photo at 1600px q80; 400px thumbnails run ~12 KB. The full set as
-PNG would exceed the GitHub Pages 1 GB cap on its own; re-encoded it does not
-come close.
+Two corrections to the first pass of these numbers, both of which moved photos
+*out* of the set and are the reason to run the classifier rather than a glob:
 
-**The world-coord group is 268 photos, not 291.** 23 files are variants at the
-same coordinate in the same folder. 17 carry a `c` suffix and are *hand-cropped
-duplicates* — `6956x744zc.png` is 1919x1005 against its `z` sibling's 1920x1080,
-someone having de-chromed it by hand, slightly wrong, at 1005 rows rather than
-1008. Dedupe rule: **prefer the uncropped `z` original** and let the pipeline
-crop consistently. These are also the ~16 "already cropped" rows in the chrome
-survey below — the same files, counted twice. The remaining 6 variants (`za`,
-`zb`, `z-0`, `z-1`) look like genuinely different shots from one spot and stay
-as separate photos; this has not been checked file by file.
+- `raw_identity.csv` already claims 182 oddly-named loose files as map tiles —
+  `20211012/IMG_0400.PNG` looks like a phone photo and is a zoom-4 map
+  screenshot. Content matching outranks any name rule, so it is checked first.
+- A filename coordinate under `TILE_COORD_MAX` (200) is a tile index, not a
+  player position. 45 loose files are tiles by that rule.
 
-**About 12 of them are nether.** `20230210/216x59z.png` is a nether highway —
-netherrack ceiling, HUD `位置: 216, 56, 59` — and a whole corridor of them share
-Z=59 across dates. Rendering those on the overworld map puts them 8x out of
-place. Dimension is therefore not an afterthought; see below.
+**297 world-coord photos become 280.** 17 files carry a `c` suffix and are
+hand-cropped duplicates — `6956x744zc.png` is 1919×1005 against its sibling's
+1920×1080, someone having de-chromed it by hand and slightly wrong. The
+uncropped original wins and the pipeline crops it consistently. The other
+variants (`za`, `zb`, `z-1`, `z2`) are genuinely different shots from one spot
+and stay.
 
-Two filename/HUD pairs check out exactly (`216x59z` = `216, 56, 59`;
-`-7771x2879z` = `-7771, 199, 2879`), so the filename is the player's X/Z. But
-note what `find_misnamed_tiles.py` already found: five *tile* files whose
-coordinate was simply wrong. Photo filenames come from the same hands and have
-no equivalent cross-check — you cannot correlate a perspective screenshot
-against a tile. `src: filename` is plausible and permanently unverifiable, which
-makes `photo_overrides.csv` the only correction mechanism rather than a
-convenience.
+### Dates
 
-### What metadata each screenshot carries
+**372 tile dates against 120 photo dates, overlapping on 101.** Only **19 photo
+dates have no tiles at all**, carrying 45 photos between them.
 
-Four tiers, in descending order of confidence:
+This is the one place the original design was substantially wrong. It predicted
+"198 of 217 dates have no map tiles" against "a current timeline of 76 tile
+dates" — but that counted every raw folder including the chat-only and
+descriptively-named ones, and the map has since grown to 372 dates. The
+world-coord photos come from sessions where somebody was actively mapping, so
+they land on tile dates far more often than the whole raw set would.
 
-1. **World coordinate in the filename** — 291 files. X/Z free, no OCR.
-2. **Coordinate HUD** — Bedrock's Show Coordinates renders `位置: 6659, 62, 509`
-   at top-left. Exact X/Y/Z from a fixed crop. Present on many of the files
-   whose names say nothing; the survey of how many has not been run (Phase 0).
-3. **Taskbar clock** — `3/29/2023 9:48 PM` bottom-right, wall-clock to the
-   minute. Present only when the taskbar is (see below).
-4. **Folder date** — always available, `YYYYMMDD`, sometimes with a `-N` session
-   suffix.
-
-`mc-screenshot-to-map/metadata/raw_ignore.csv` already classifies these files —
-it distinguishes `"named for the player's world coordinate, not a tile
-coordinate"`, `"chat log(s)"` and `"unnamed screenshot(s)"`. The classifier
-exists; today its output is a skip reason. Phase 1 promotes it to a category.
+The photo-only row type is still needed and still built; it is just 19 rows
+rather than the majority of the timeline.
 
 ## Window chrome and the crop
 
-Screenshots are 1920×1080 desktop captures with Windows chrome. Measured over
-all 291 world-coord files, sampling the centre strip (x ∈ 36–58%, which misses
-both the title-bar text and the taskbar icons):
+Screenshots are 1920×1080 desktop captures with Windows chrome, from **two
+machine generations**, which the original design did not know about:
 
-| Top black band | Bottom grey band | Height | n |
+| | title bar | taskbar | files |
 |---|---|---|---|
-| 32 | 40 | 1080 | 198 |
-| 32 | 0 | 1080 | 29 |
-| 0 | 0 | 1080 | 31 |
-| 0 | 0 | 1003–1032 | ~16 |
-| 32 | 0 | 1252 | 2 |
-| overshoot | — | 1080 | 4 |
+| Windows 10 | 32px, `#000000` | 40px, `#2D2D2D` | 237 |
+| Windows 11 | 23px, translucent | 47px, translucent | 26 |
 
-Read: the canonical case is a **32px title bar (`#000000`) and a 40px taskbar
-(`#2D2D2D`)**, leaving a 1920×1008 game area at `+0+32`. 29 files have the title
-bar with no taskbar (game content runs to the bottom edge — verified, not a
-centred Windows 11 taskbar). 31 are fullscreen with no chrome. ~16 were already
-cropped by hand at some point. Two are from a taller display.
+The heights are bimodal with nothing between the modes, which is what makes an
+exact-height rule safe.
 
-**The crop must be detected, and the detection must be constrained.** The four
-"overshoot" rows are the reason: a night or cave screenshot has a genuinely
-black sky, and a greedy "consume leading black rows" scan ate 82, 99, 125 and
-214 rows of actual game content. Rules:
+**The Windows 11 bars have no colour of their own.** They are translucent and
+take their tint from whatever the game is drawing behind them — the same
+taskbar measures 33 over a nether tunnel, 41 over a desert and 44 over an
+ocean. A fixed-colour test finds none of them.
 
-- Accept a top band **only if it is exactly 32 rows**, and row 32 is not black.
-- Accept a bottom band **only if it is exactly 40 rows** of `#2D2D2D` (±6).
-- Verify uniformity across the full width excluding the icon zones — check
-  x ∈ [200, 1700] for the title bar, x ∈ [500, 1550] for the taskbar.
-- Anything else: crop nothing, flag for review. Never guess a band height.
+**And the Windows 10 taskbar is not flat either.** It means `#2D2D2D`, but
+renders with a faint acrylic noise: its pixels run 36–61 over a span whose mean
+sits at 44.2–44.3 with σ 4.4–4.5. A per-pixel tolerance can never match it.
 
-**Order matters: OCR the taskbar clock before cropping it away.** The clock is
-the only source of wall-clock time, and ~60 files (29 + 31) have no taskbar and
-therefore no time beyond their folder date.
+So both bars are found the same way, by the one property both actually have:
+**a bar is a flat horizontal band whose rows share one colour, ending at a row
+that does not.** Concretely, in `detect_chrome`:
 
-The crop is for looks, not bytes — it removes 6.7% of rows, and they are the
-cheapest rows in the image. It changes the storage estimates by ~3%.
+- Compare each row's mean colour, per channel, across a span clear of the bar's
+  own contents — the window title and buttons, the taskbar icons and clock.
+  The buttons reach further in than they look: a span ending at x=1700 clipped
+  them on six files and cost those files their crop.
+- Judge flatness against the band's **median** row, not its first, so an
+  overlay cannot disqualify a real bar. A notification toast sat over one
+  taskbar and a strict all-rows test threw the whole thing away.
+- Accept only the four real heights above. Anything else crops nothing and is
+  flagged.
+- The Windows 10 title bar keeps a dedicated pure-black test as well, because
+  it is the one case where the row *below* the bar may legitimately be dark —
+  a cave ceiling — and the general test would read that as more bar.
 
-## Storage and repo layout
+**This is what stops the overshoot the original design warned about.** A night
+or cave screenshot has a genuinely black sky, and a greedy "consume leading
+black rows" scan ate 82, 99, 125 and 214 rows of game content. Four files here
+have leading black runs of 41, 60, 67 and 70 rows; none of those is a real
+height, so none of them is cropped.
 
-Current `llmr` deploy is 211 MB (196 MB of it 4,543 tiles) against the GitHub
-Pages 1 GB cap.
+Result: **272 of 280 cropped, 7 flagged, 1 left whole deliberately.** Six of
+the seven flagged are files somebody had already hand-cropped years ago. The
+deliberate one is `20230920/6955x819z.png`, where the game content directly
+under the title bar is itself pure black, so the ambiguity guard fires — the
+conservative outcome the rule exists to produce.
 
-- world-coord photos only → **253 MB**, 25% of cap
-- every screenshot → **334 MB**, 33% of cap
+**Order still matters: OCR the taskbar clock before cropping it away.** The
+clock is legible in both generations and is the only source of wall-clock time.
+Roughly 40 files have no taskbar at all and have nothing beyond their folder
+date. Phase 3.
 
-**Decision: one repo, no split.** At ~45 new date folders a year this is a
-decade of headroom, and a second repo costs two deploys to keep in sync.
-Bandwidth is not a concern either: thumbnails are lazy-loaded, so a session
-pulls a few hundred KB, not the set.
+## Storage
 
-**But build the escape hatch now.** `site.json` carries:
+The encoded set is **35 MB** — 32.1 MB of full images at 1600px q80 and 2.9 MB
+of 400px q72 thumbnails, mean 115 KB per photo. `llmr/deploy` goes from 223 MB
+to 269 MB, about a quarter of the GitHub Pages 1 GB cap. The full raw PNGs for
+these 280 files are just over 400 MB.
+
+**Decision: one repo, no split.** At this rate it is a decade of headroom, and
+a second repo costs two deploys to keep in sync. Bandwidth is not a concern
+either: thumbnails are lazy-loaded, so a session pulls a few hundred KB.
+
+**The escape hatch is built.** `site.json` carries:
 
 ```json
 "photos": { "baseUrl": "photos/", "thumbUrl": "photos/thumb/" }
 ```
 
-Relative by default. If the set ever does outgrow the repo, moving to
+Relative by default, substituted into `index.html` as `window.photosConfig` by
+`build-assets.mjs`. If the set ever outgrows the repo, pointing these at
 `https://oatmeal.github.io/llmr-photos/` is a config edit and a file move — no
 code change, no data migration. A plain `<img>` loads cross-origin without CORS.
+`lib/photos.test.js` pins that an absolute base passes through untouched.
 
-The real constraint is **git history, not the deploy cap.** `llmr/.git` is
-185 MB, and it is that small only because the tiles were written once. Each
-re-encode of the photo set adds another ~40 MB of blobs permanently. So:
+**Raw PNGs never enter the data repo.** `../raw` is untracked by `llmr` and
+stays that way; the deploy artifact is the derived WebP.
 
-- **Settle the encoding before the first commit.** Encode a 30-file sample at
-  the candidate settings, look at them, pick one, then import. Revision three is
-  what hurts, not the import.
-- **Raw PNGs never enter the data repo.** `../raw` is untracked by `llmr` today.
-  Keep it that way; the deploy artifact is the derived WebP. If the originals
-  ever need publishing, GitHub Releases assets stay out of git history.
+### Before committing
 
-Encoding baseline, subject to the Phase 0 eyeball: WebP, long edge 1600,
-q80, plus a 400px q72 thumbnail. Verified legible at that setting — the taskbar
-clock survives, block edges stay clean. Minecraft's flat-shaded art is close to
-a best case for WebP.
+`llmr/.git` is 185 MB, and it is that small only because the tiles were written
+once. Each re-encode of the photo set adds another ~35 MB of blobs permanently.
+**Settle the encoding by looking at the images before the first commit** —
+revision three is what hurts, not the import. A 30-file sample is one command:
+
+```
+uv run python scripts/build_photos.py --sample 30   # → scratch/photo_sample/
+```
+
+The current setting is WebP, long edge 1600, q80, plus a 400px q72 thumbnail.
+Minecraft's flat-shaded art is close to a best case for WebP.
 
 ## Data format
 
 `data/[dim]/photos.json`, alongside the existing layer files:
 
 ```json
-{ "id": 102, "name": "スクリーンショット", "kind": "photos",
+{ "id": 102, "name": "スクリーンショット", "dimension": "overworld",
+  "kind": "photos",
   "photos": [
-    { "f": "20240828/6827x740z",
-      "date": "20240828",
-      "time": "12:28",
-      "pos": [6827, 74, 740],
-      "src": "filename",
-      "title": "..." }
+    { "f": "20240828/6827x740z", "date": "20240828",
+      "pos": [6827, null, 740], "src": "filename" }
   ] }
 ```
 
-`id` is a **number**, and must be unique *across all dimensions* — see the
-gotchas below. Follow llmr's existing banding: overworld 100s, nether 1-50,
-end 200s. So `photos` is 102 in the overworld, 51 in the nether, 202 in the end.
+`id` is a **number**, unique *across all dimensions*: overworld 102, nether 51,
+end 202, following llmr's existing banding. The build collects layer ids in one
+dict for the whole run and sorts with `a.id - b.id`, so a duplicate throws and
+a string id yields `NaN`.
 
 - `f` — path stem under `baseUrl`/`thumbUrl`; the encoder owns the extension.
-- `time` — `HH:MM` from the taskbar clock, omitted when there is no taskbar.
 - `pos` — `[x, y, z]` in **dimension-native coordinates**, exactly as layer
-  markers already are. Never bake the nether x8 into the data; `dimScale()`
-  applies it at render time. `y` is null when the position came from a
-  filename, which carries no height.
-- `kind` — dispatches the renderer in `setupLayer()`. Absent means the existing
-  marker/line layer.
-- `src` — `filename` | `hud` | `manual`. **Keep this.** It is the same
-  discipline `sync-vods.mjs` uses when it labels which source a date came from,
-  and you will want it the first time a photo lands in the middle of the ocean.
+  markers are. The nether ×8 is never baked in; `dimScale()` applies it at
+  render time. `y` is `null` when the position came from a filename, which
+  carries no height, and the lightbox caption drops it when it is.
+- `kind` — dispatches the renderer. Absent means the existing marker/line layer.
+- `time` — `HH:MM`, omitted when there was no taskbar clock. Phase 3.
+- `src` — `filename` | `hud` | `manual`.
 - `title` — optional, hand-written, never generated.
 
-Hand corrections live in `mc-screenshot-to-map/metadata/` as CSV next to
-`raw_identity.csv`, for the reason `metadata_store.py` already gives: the diff
-is the audit trail. A `photo_overrides.csv` keyed by raw path, carrying
-position, time and title, applied over whatever extraction produced.
+**`src` earns its keep.** The filename coordinate is plausible and permanently
+unverifiable — you cannot correlate a perspective screenshot against a tile the
+way `find_misnamed_tiles.py` correlates a map one, and that script found five
+tile names that were simply wrong. So `metadata/photo_overrides.csv` is the
+correction mechanism rather than a convenience, keyed by raw path and carrying
+dimension, position, time and title. It lives in git next to `raw_identity.csv`
+for the reason `metadata_store.py` already gives: the diff is the audit trail.
+
+**Nine filename coordinates have now been checked against the HUD and all nine
+agree** — `216x59z` reads `位置: 216, 56, 59`, `2938x367z` reads
+`位置: 2938, 64, 367`, and so on. That is not proof, but it is no longer two
+spot-checks.
 
 ## Dimension independence
 
-**Decision: Phase 1 ships overworld only, but nothing in the code is
-overworld-specific.** Nether photos land before the feature deploys, and adding
-them must be a data change, not a code change.
+**Both dimensions ship.** 263 overworld photos and 17 nether ones, and the only
+thing that distinguishes them in code is the data file they are in.
 
-This costs almost nothing, because the layer system *is* the mechanism. Photos
-ride it as a layer kind rather than a parallel system:
+The rule that keeps it that way: **no code branches on dimension.** The one
+legitimate exception is `dimScale()`, which already existed. `setupPhotos.js`
+has no dimension test of any kind, and `setupPhotos.test.js` pins overworld,
+nether and end rendering to make sure it stays that way.
 
-- `build-data.mjs` globs `data/[dimension]/*.json` and builds every match into
-  that dimension's layer list. Dropping `data/nether/photos.json` in later is
-  picked up with no new discovery code.
-- `setupLayer()` in `lib/setupLayers.js` already does
-  `const scale = dimScale(mymap.dim); const x = pos[0] * scale`. Store
-  dimension-native coordinates and the nether x8 is handled for free.
-- The layers panel checkbox, the `visibleLayers` set, and its hash persistence
-  are all per-dimension already.
-- `changeDim()` swaps `mymap.dimData`, so a viewer that only ever reads
-  `mymap.dimData` never learns dimensions exist.
+### Deciding which dimension a photo is in
 
-**The rule that keeps it that way: no code may branch on dimension.** The one
-legitimate exception is `dimScale()`, which already exists. If a second
-`dim === DIM_NETHER` appears anywhere in the photo code, something is wrong.
+Not recoverable from a filename, and a defaulted nether photo lands 8× out of
+place *silently*. So `suggest_dimension` asserts only the case it can argue:
 
-### The seams are already in place
+- A world-scale coordinate, far outside anything the nether reaches → overworld.
+- A small coordinate whose ×8 lands inside the mapped overworld → **unknown**.
+  This is the inverse of the nether scale, and it is exactly what a nether
+  screenshot looks like: `20220929/816x60z.png` becomes (6528, 480), the main
+  base.
+- Any other small coordinate → **unknown**.
 
-The prep refactors landed, so each of these is now an entry in a list rather
-than new plumbing:
+That flagged 27 files. All 27 were opened and resolved by hand into
+`photo_overrides.csv`: **17 nether, 10 overworld, 0 left unknown.** What settled
+them:
 
-- **Rendering** — add `{ key: "photos", render: renderPhotos }` to `RENDERERS`
-  in `lib/setupLayers.js`. `renderPhotos` receives `(mymap, data, dataLayer,
-  { url, fraction })` like its siblings, and `setupLayers.test.js` shows how to
-  test it without a browser.
-- **Timeline order** — pass a second stream to `buildTimelineEntries(dates, [...])`
-  in `lib/setupTimeline.js`, and switch on `kind` in the loop that follows.
-  The merge itself is pure and tested in `lib/timeline.js`.
-- **Month counts** — add `{ kind: "photo", icon: () => "📷" }` to `SUMMARY_KINDS`
-  in `lib/timeline.js`, and count it where `addVodEntry` counts VODs.
-- **Bounds** — one more `extendBounds(bounds, points, dim)` call in
-  `build-data.mjs`, next to the markers and lines calls.
-
-### Three gotchas in the existing build
-
-1. **The glob will eat `photos.json` as a layer.** `data/[dim]/*.json` matches
-   it, and `build-data.mjs` throws on a missing `id`. Give it the layer envelope
-   (`id`, `name`) and a `kind` that `setupLayer()` dispatches on, rather than
-   inventing a path outside the glob.
-2. **`layerIds` is global across dimensions.** It is declared *outside* the
-   `for (const dim of ...)` loop, so a duplicate `id` in two dimensions throws
-   at build time. `photos` in the overworld and in the nether need different
-   ids. llmr's existing layers are numeric and already banded this way —
-   `gate.json` is 100 in the overworld and 1 in the nether.
-3. **`id` must be numeric.** `sortedLayers.sort((a, b) => a.id - b.id)`
-   subtracts them; a string id yields `NaN` and an unstable sort.
-
-### The one dimension-aware edit
-
-`build-data.mjs` computes each dimension's bounds through `extendBounds`, which
-is where the nether scale is applied and the only place in the build that does
-dimension math. It is called for `over.markers` and `over.lines`; photos need a
-third call. Everything else stays dimension-blind.
-
-## Extraction pipeline
-
-New `mc-screenshot-to-map/screenshots.py`, plus a `scripts/build_photos.py`
-entry point that writes into the `llmr` checkout.
-
-1. **Classify** every raw file: `tile` | `photo` | `chat` | `unknown`. Promote
-   the logic behind `raw_ignore.csv` from a skip reason to a category, and keep
-   `raw_ignore.csv` generated from it so the existing pipeline is unaffected.
-2. **Locate** — filename coordinate first; else OCR the HUD crop; else
-   unpositioned. Record `src`.
-3. **Timestamp** — OCR the taskbar clock crop, before the crop step.
-4. **Crop** — detect the chrome bands under the constrained rules above.
-5. **Encode** — WebP full + thumbnail.
-6. **Emit** `photos.json` per dimension, applying `photo_overrides.csv`.
-
-**Dimension.** Not recoverable from a filename, only sometimes from the image.
-The extractor tags every photo `overworld` | `nether` | `end` | `unknown`, and
-Phase 1 writes only the `overworld` file. `unknown` is never defaulted — a
-defaulted nether photo lands 8x out of place, silently. It goes into a report
-for the overrides CSV instead.
-
-There is a usable hint, if it earns its keep: the base sits at ~(6500, 500)
-overworld, and the suspected nether photos cluster around ~(810, 60), which is
-that divided by eight. Small magnitude *and* landing on an overworld cluster
-over eight is suggestive. At 12 files, hand-entering the overrides is cheaper
-and certain.
+- Netherrack, basalt, soul sand valley fog and lava seas are unmistakable.
+- **Y is decisive in one direction.** `20220521/578x-96z.png` reads
+  `位置: 578, -2, -96`, and Y=−2 is below the nether's bedrock floor, so that
+  one is an overworld deep cave however dark it looks.
+- **Corridors give each other away.** Several files share Z=59 across four
+  years — `-523x59z`, `216x59z`, `484x59z` — which is one nether highway. A
+  sandstone-lined stretch of it looks nothing like netherrack on its own.
+- **Sessions give each other away.** `20240616/1521x66z.png` is a stone-brick
+  tunnel with a camel in it and could be anywhere; `1909x67z.png` from the same
+  session shows the same tunnel with a netherrack ceiling and the same camels.
 
 ## Viewer
 
-New modules in this repo, following the existing split — pure logic in `lib/*.js`
-with tests, wiring in a `setup*.js`:
+- `lib/photos.js` — pure: timeline filtering, clustering, URLs, captions, date
+  grouping, terrain-date selection.
+- `lib/setupPhotos.js` — the Leaflet layer, the lightbox, the photos pane.
+- `RENDERERS` in `lib/setupLayers.js` gains `{ key: "photos", render: renderPhotos }`
+  and nothing else changes there.
 
-- `lib/photos.js` — pure: filtering a photo list by timeline date and mode,
-  clustering by zoom, building the lightbox caption. Tested.
-- `lib/setupPhotos.js` — Leaflet layer, markers, lightbox, sidebar pane.
-- `static/index.html` — a photos pane and its sidebar tab.
+### Clustering
 
-**Clustering is the primary case, not a refinement.** The photos are severely
-concentrated: 40% of them sit in one 500-block cell at (6500, 500), the top
-three cells hold 54%, and the whole set spans 50 occupied cells across
-X -7,787..16,210. The default view is 118 pins stacked on the main base. A
-photo-pin map without clustering does not work at all here.
+**Answered: screen pixels, not world coordinates.** A fixed 72px cell at the
+current zoom. World-coordinate cells are stable and cacheable but look wrong at
+both ends — a cell that separates two builds when zoomed in merges half the map
+when zoomed out. Pixels are what the eye is judging, so one cell size gives one
+density at every zoom and clusters break apart on their own as you zoom in.
+Clustering therefore depends on zoom but *not* on pan, so panning costs nothing.
 
-Rendering, zoom-dependent: cluster bubble with a count when far out; the top
-photo at each cluster as a small square thumbnail pinned to the map at mid
-zoom (the Google Maps look); individual pins when close. Worth building
-custom rather than pulling in Leaflet.markercluster, since the thumbnail-as-pin
-behaviour is wanted anyway.
+Measured over the real 263 overworld photos:
 
-A photos sidebar pane lists thumbnails for photos in the current viewport,
-re-filtered on `moveend`. Pan to a build, see its photos; click one, the map
-flies to its pin. Given the concentration above this is **co-primary, not
-secondary** — a 118-photo cluster cannot be explored by clicking pins, so the
-list is the only way through the main base. The marker path is for when you are
-already looking at a place.
+| zoom | pins | biggest cluster |
+|---|---|---|
+| −3 (min) | 13 | 189 |
+| 4 (default) | 154 | 14 |
+| 5 | 187 | 7 |
+| 7 | 238 | 4 |
+
+This was the load-bearing question. The set is severely concentrated — 40% of
+the photos sit in one 500-block cell at (6500, 500) and the top three cells hold
+54% — so the default view without clustering is a hundred-odd pins stacked on
+the main base.
+
+A cluster renders as its **newest** photo's thumbnail with a count badge; a
+lone photo renders as a bare thumbnail. One rule gives all three behaviours the
+design asked for, with zoom doing the work. The pin is anchored on the lead
+photo's real position rather than the cell centroid, so it sits where a photo
+was actually taken instead of in the average of a bay.
+
+### The photos pane
+
+Lists every photo in the current viewport, newest first, re-filtered on
+`moveend`. Click one and the map flies to it and opens the lightbox.
+
+**Co-primary with the pins, not secondary.** Given the concentration above, a
+cluster of 189 photos cannot be explored by clicking it; the list is the way
+through the main base. The pins are for when you already know where you are
+looking.
+
+### The lightbox
+
+Holds the whole cluster, not one photo, so ← → walk it. Escape closes.
+"この日付の地図を表示" sets the timeline to the photo's date — the pairing that
+is the point of the feature.
 
 ## Timeline behaviour
 
-**Photos obey the timeline's existing exact/before/fill semantics.** The
-timeline already means three things about tiles; it means the same three about
-photos:
+**Photos obey the timeline's existing exact/before/fill semantics**, and
+`selectPhotos` is written to mean the same three things `selectTileDate` means:
 
 - **exact** → only photos taken on the selected date
-- **before** (default) → every photo up to and including it
+- **before** → every photo up to and including it
 - **fill** → photos from any date, dimmed if they postdate the selection
 
-Scrubbing backward empties the map of photos that had not been taken yet; the
-world visibly fills with memories as you move forward. No new control, no new
-mental model.
+Scrubbing backward empties the map of photos that had not been taken yet. No
+new control, no new mental model.
 
-`groupSummaryHtml` in `lib/timeline.js` already renders `(🗓3) (▶4)` per
-year/month group. Add `(📷12)`. One small change, and it makes the photo dates
-discoverable from the pane people already open.
+**Two dates, not one.** `timeline.date` chooses the terrain and
+`timeline.photoDate` chooses which photos exist. They are equal for every
+ordinary selection and differ only for a photo-only row, which has no tiles of
+its own to select: that row sets `photoDate` to itself and drops `date` to the
+nearest earlier tile date, which is what "what did this place look like when
+the photo was taken" means. Both ride the permalink hash (`h.p`).
 
-**Photo-only dates need their own row type.** A date with photos but no tiles
-cannot be a tile-selection radio — there is nothing to redraw. It should render
-as a non-radio row (as VOD rows do today) that sets the photo filter and selects
-the *nearest earlier* tile date for terrain, which is what "what did this place
-look like when the photo was taken" actually means.
-
-**Clicking a photo sets the timeline to its date**, so the terrain under it
-snaps to what was there, and ◀ ▶ then walk history with the photo pinned. This
-pairing is the point of the feature.
+`groupSummaryHtml` renders `(🗓3) (▶4) (📷12)` per year/month group. Every photo
+counts toward the summary, including the 218 that fall on dates which already
+have a tile row of their own — only the *row* is suppressed there.
 
 **Chat logs stay off the map.** They have no location and reading one is a
-full-screen act. Timeline-only entries — a 💬 count in the month summary and a
-row that opens the lightbox — sitting alongside VOD rows. Placing them
-geographically would be inventing data.
+full-screen act. Timeline-only entries — a 💬 count and a row that opens the
+lightbox. Placing them geographically would be inventing data. Phase 4.
 
 ## Rejected
 
 **Deep-linking a photo into the VOD at the moment it was taken.** The taskbar
 clock plus a stream start time would give a seconds offset, which is exactly the
-`t` field `vodUrl()` already renders. It does not work: the majority of the
-VODs are re-uploads of Twitch archives, so the YouTube timestamps describe the
+`t` field `vodUrl()` already renders. It does not work: the majority of the VODs
+are re-uploads of Twitch archives, so the YouTube timestamps describe the
 re-upload, not the stream. Revisit only if a source of true stream start times
 turns up.
 
 ## Phases
 
-- **Phase 0 — survey.** How many of the 581 descriptively-named files have a
-  readable HUD? Settle the encoding by eyeballing a sample. Both are cheap and
-  both change the plan; do them before writing the importer. No commits to
-  `llmr`.
-- **Phase 1 — extraction, world-coord only.** Classifier, crop, encode,
-  `photos.json` for the 291 files with free coordinates. Zero OCR. Produces real
-  data to build the viewer against.
-- **Phase 2 — viewer v1.** Photo layer, markers with clustering, lightbox,
-  timeline filtering by the three existing modes, month-summary counts.
-- **Phase 2.5 — nether and end photos.** Fill in the dimension overrides, write
-  `data/nether/photos.json`. If Phase 1 and 2 were built to the rule above this
-  is a data change and nothing else; if it turns out not to be, that is the bug
-  to fix before deploying.
-- **Phase 3 — OCR.** HUD coordinates and taskbar clock, bringing in the
-  descriptively-named set. Overrides CSV for what OCR gets wrong.
+- **Phase 0 — survey.** *Done.* `--survey` and `--crop-survey` are the standing
+  version of it.
+- **Phase 1 — extraction, world-coord only.** *Done.* 280 photos, no OCR.
+- **Phase 2 — viewer v1.** *Done.* Layer, clustering, lightbox, pane, timeline
+  filtering, month counts.
+- **Phase 2.5 — nether and end photos.** *Done for the nether* (17 photos), and
+  it was a data change and nothing else, as intended. No end photos exist yet;
+  the id (202) is reserved and the code path is the same one.
+- **Phase 3 — OCR.** HUD coordinates and the taskbar clock, bringing in the 214
+  descriptively-named screenshots and giving the existing 280 a wall-clock time.
+  Crop the clock *after* reading it.
 - **Phase 4 — chat logs** as timeline-only entries.
-
-Phase 1 + 2 is a coherent shippable feature on its own, and it proves the
-timeline interaction before any investment in OCR. **The feature does not deploy
-before Phase 2.5** — shipping an overworld-only photo layer would silently drop
-photos that exist.
-
-For the *prototype*, invert 1 and 2. Extraction is known work; the clustering UX
-and the timeline interaction are the unknowns. Hand-write a `photos.json` for
-the 118 base-cluster photos, encode them roughly, and build the viewer against
-that — an afternoon tells you whether exact/before/fill feels as good in
-practice as it reads on paper, and if it does not, nothing was spent on OCR.
 
 ## Open questions
 
-- How many `-N` session variants matter for photos — is folder-date granularity
-  enough, or does the timeline need the wall-clock time as a sort key within a
-  day?
-- Should an unpositioned photo (dated but no coordinate) appear at all? A
-  timeline-only row like a chat log is the obvious answer, but it may be a large
-  and uninteresting pile.
-- Clustering: cluster in world coordinates at a fixed radius, or in screen
-  pixels per zoom level? Screen pixels behaves better; world coords are stable
-  across zoom and cacheable. Needs answering *before* the viewer, not after —
-  see the concentration figures above.
-- Do the 6 non-`c` variants (`za`, `zb`, `z-0`, `z-1`) hold distinct shots, or
-  more hand-edits? 23 files turn on this; nobody has opened them.
-- Are the filename coordinates right? Two spot-checks agree with the HUD
-  exactly. Ten more would be worth the ten minutes, given the tile precedent.
+- **How many `-N` session variants matter?** Still open. The timeline is
+  folder-date granular and the wall-clock time is not yet extracted, so photos
+  within a day have no sort key beyond their filename.
+- **Should an unpositioned photo appear at all?** Still open, and Phase 3 makes
+  it concrete: OCR will place some of the 214 and leave the rest dated but
+  unplaced. A timeline-only row like a chat log is the obvious answer.
+- **Do the non-`c` variants hold distinct shots?** Still unopened. There are 11
+  of them (`a`, `b`, `1`, `2`, `-0`, `-1`), and they are currently all kept as
+  separate photos, which is the safe direction to be wrong in.
+- ~~Clustering: world coordinates or screen pixels?~~ Answered above.
+- ~~Are the filename coordinates right?~~ Nine of nine agree with the HUD.

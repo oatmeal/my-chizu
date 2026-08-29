@@ -157,6 +157,10 @@ for (const dim of [DIM_OVERWORLD, DIM_NETHER, DIM_END]) {
   }
 
   const layers = [];
+  // Dates that carry photos, and how many. The timeline panel needs only the
+  // counts -- a row per date, not per photo -- so it reads them from here
+  // rather than fetching a layer file that may hold hundreds of entries.
+  const photoDates = {};
   for (const fn of await fg(
     join(dataDir, "data", dimension, "*.json").replaceAll("\\", "/")
   )) {
@@ -192,6 +196,17 @@ for (const dim of [DIM_OVERWORLD, DIM_NETHER, DIM_END]) {
         over.lines.flatMap(({ pts }) => pts.map(([x, , z]) => [x, z])),
         dim
       );
+    }
+
+    if (over.photos) {
+      extendBounds(
+        bounds,
+        over.photos.map(({ pos }) => [pos[0], pos[2]]),
+        dim
+      );
+      for (const { date } of over.photos) {
+        photoDates[date] = (photoDates[date] || 0) + 1;
+      }
     }
 
     // write minified JSON
@@ -329,6 +344,7 @@ for (const dim of [DIM_OVERWORLD, DIM_NETHER, DIM_END]) {
     maxZ: bounds.maxZ + maxWidth,
     dates: sortedDates,
     fileDates: timeFileDict,
+    photoDates,
     layers: sortedLayers,
     tilePath,
     errorTileUrl,
@@ -345,3 +361,14 @@ for (const dim of [DIM_OVERWORLD, DIM_NETHER, DIM_END]) {
 await fsPromises.cp(join(dataDir, "tiles"), join(deployDir, "tiles"), {
   recursive: true,
 });
+
+// Copy the encoded photos, if the data repo has any. The raw PNGs never live
+// here -- these are the derived WebP pairs `site.json`'s photo URLs point at.
+try {
+  await fsPromises.cp(join(dataDir, "photos"), join(deployDir, "photos"), {
+    recursive: true,
+  });
+} catch (e) {
+  if (e.code !== "ENOENT") throw e;
+  // no photos/ in the data repo is fine
+}

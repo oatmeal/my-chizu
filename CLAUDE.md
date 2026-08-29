@@ -72,6 +72,8 @@ lib/
   tileDate.js          # Tile date selection for exact/fill/before modes (pure, tested)
   timeline.js          # Date formatting, group summaries, timeline entry merge (pure, tested)
   setupLayers.js       # Leaflet layer rendering, dispatched on content kind (tested)
+  photos.js            # Photo filtering, clustering, captions (pure, tested)
+  setupPhotos.js       # Photo layer, clustering, lightbox, photos pane (tested)
   setupTimeline.js     # Timeline panel DOM; getTileReplacements (partly tested)
   *.test.js            # Vitest unit tests alongside each module
 static/                # HTML template, CSS, icons, YouTube branding
@@ -96,10 +98,11 @@ data/
   config.json          # Per-dimension spatial config (X0, Z0, defaults, tile paths)
   dates.json           # YYYYMMDD → display string
   vods.json            # [{id, date, title, t?}] — id is a YouTube video id
-  overworld/*.json     # Layer files
+  overworld/*.json     # Layer files, including the optional photos.json
   nether/*.json
   end/*.json
 tiles/                 # tiles/[dim]/[zoom]/[x]/[z]/[date].png
+photos/                # Optional: [date]/[stem].webp plus thumb/[date]/[stem].webp
 static/                # Optional: site-specific assets copied into deploy/ (e.g. og.jpeg)
 site.json              # Site identity — see below
 ```
@@ -118,6 +121,10 @@ site.json              # Site identity — see below
   },
   "aboutTitle": "Header text for the info sidebar pane",
   "aboutHtml": "<p>HTML content for the info sidebar pane</p>",
+  "photos": {
+    "baseUrl": "photos/",
+    "thumbUrl": "photos/thumb/"
+  },
   "vods": {
     "playlists": ["https://www.youtube.com/playlist?list=..."],
     "extraVideos": ["videoId"],
@@ -128,6 +135,11 @@ site.json              # Site identity — see below
   }
 }
 ```
+
+The `photos` block says where the photo layer loads its images from. Both are
+relative to the deploy root by default and are substituted into `index.html` as
+`window.photosConfig`, so moving the set to another origin later is a config
+edit and a file move rather than a code change.
 
 The `vods` block is only read by `scripts/sync-vods.mjs`; the build ignores it.
 `extraVideos` pins videos that belong in the timeline but sit outside the
@@ -171,6 +183,20 @@ jobs:
 
 **Layer JSON format:** `{ id, name, dimension, markers[], lines[] }` — see `notes.md` for full schema. A layer file may carry any combination of content arrays; `RENDERERS` in `lib/setupLayers.js` maps each key to the function that draws it, so a new kind of content is an entry there rather than a branch. `id` must be a **number** and unique across *all* dimensions — `build-data.mjs` collects ids in one dict for the whole build and sorts layers numerically.
 
+**Photo layer:** a layer file with `kind: "photos"` and a `photos` array is
+drawn by `renderPhotos` in `lib/setupPhotos.js` instead of as markers/lines.
+Photos cluster by a fixed pixel cell at the current zoom (so clustering depends
+on zoom but not on pan), render as thumbnail pins with a count badge, and open
+a lightbox that walks the whole cluster. `data/[dim]/photos.json` is produced by
+`mc-screenshot-to-map`; see `PLAN_PHOTOS.md`.
+
+**Two timeline dates:** `timeline.date` selects the terrain and
+`timeline.photoDate` selects which photos exist. They are equal for every
+ordinary selection, and differ only for a date that has photos but no tiles —
+that row sets `photoDate` to itself and drops `date` to the nearest earlier tile
+date. Both persist in the hash (`h.d` and `h.p`). Anything that changes either
+must fire `timelinechange`, which is what the photo layer and pane redraw on.
+
 **Adding a timeline entry kind:** `buildTimelineEntries()` in `lib/timeline.js` merges the tile dates with any number of pre-sorted streams (VODs today), and `SUMMARY_KINDS` in the same file drives the per-month counts. Both take new kinds without a signature change.
 
 **VOD links:** `vods.json` entries link to YouTube. `vodUrl()` / `vodIconHtml()` in `lib/timeline.js` are the only places the provider is named, so pointing the timeline elsewhere means changing those two functions and `static/youtube.svg`.
@@ -181,9 +207,9 @@ a separate field on purpose: `id` must stay a bare video id, since
 `scripts/sync-vods.mjs` matches ids against playlist entries verbatim and would
 otherwise re-add the video as a duplicate and report the offset entry as stale.
 
-**Build output:** `build-data.mjs` scans `tiles/` and emits `[dim].json` metadata (bounds, dates, layer info) plus per-date tile replacement caches into `deploy/data/`.
+**Build output:** `build-data.mjs` scans `tiles/` and emits `[dim].json` metadata (bounds, dates, layer info, per-date photo counts) plus per-date tile replacement caches into `deploy/data/`, and copies `tiles/` and `photos/` into `deploy/`. A layer's photos extend the dimension's bounds, so a far-flung screenshot is reachable on the map.
 
-**`index.html` tokens:** `***TITLE***`, `***OG_TITLE***`, `***OG_URL***`, `***OG_IMAGE***`, `***OG_DESCRIPTION***`, `***OG_LOCALE***`, `***ABOUT_TITLE***`, `***ABOUT_HTML***` — substituted from `site.json` by `build-assets.mjs`.
+**`index.html` tokens:** `***TITLE***`, `***OG_TITLE***`, `***OG_URL***`, `***OG_IMAGE***`, `***OG_DESCRIPTION***`, `***OG_LOCALE***`, `***ABOUT_TITLE***`, `***ABOUT_HTML***`, `***PHOTOS_CONFIG***` — substituted from `site.json` by `build-assets.mjs`.
 
 ## Code Conventions
 

@@ -6,7 +6,7 @@
 
 ## Features
 
-- **Screenshot photo layer** — display screenshots pinned where they were taken, filtered by the timeline. Designed in `PLAN_PHOTOS.md`; not started. The original open questions (what metadata to carry, how it interacts with the timeline) are answered there; the ones still open are listed at the end of that doc.
+- **Screenshot photo layer** — built for the 280 screenshots whose filename carries a world coordinate (263 overworld, 17 nether). Layer, clustering, lightbox, photos pane and timeline filtering all exist. Remaining, per `PLAN_PHOTOS.md`: **Phase 3**, OCR of the coordinate HUD and taskbar clock, which brings in the 214 descriptively-named screenshots and gives every photo a wall-clock time; and **Phase 4**, chat logs as timeline-only entries. The photo set is not committed to `llmr` yet — settle the encoding by looking at a `--sample` first, because each re-encode adds its blobs to that repo's history permanently.
 
 ## Robustness
 
@@ -15,7 +15,7 @@
 
 ## Testing
 
-- **No DOM-level coverage of the timeline builder** — `vite.config.js` sets `environment: "node"`, and `setupTimeline.test.js` only covers `getTileReplacements`. The DOM-building `setupTimelinePanel` is untested, so the wiring between an entry's fields and the rendered `<a href>` (`vodUrl(vod.id, vod.t)` at `setupTimeline.js:189`) is verified only by reading, as is the year/month group assembly. The date/VOD interleaving no longer needs jsdom — it moved to `buildTimelineEntries` in `lib/timeline.js` and is covered there. `setupLayers.js` is covered by stubbing Leaflet and the DOM rather than standing up jsdom; the same approach would work here.
+- **Partial DOM coverage of the timeline builder** — `setupTimeline.test.js` still only covers `getTileReplacements`, but the photo half of `setupTimelinePanel` is now exercised end-to-end by the photo block in `test/init-integration.test.js`, which stands up real Leaflet under jsdom: photo-only rows, month summary counts, the terrain-date fallback and `setTimelineDate`. The VOD half is still verified only by reading — the wiring between an entry's fields and the rendered `<a href>` (`vodUrl(vod.id, vod.t)`), and the year/month group assembly. Adding VOD fixtures to that same block is the cheap way in. Note `vite.config.js` still sets `environment: "node"`; the jsdom tests opt in with a `@vitest-environment jsdom` pragma.
 - **No tests for `scripts/sync-vods.mjs`** — the known/stale/dedupe logic is untested, which is why a `?t=` suffix on an id silently became a duplicate-append path. `scripts/vodTitle.js` is the only part of the sync tooling with coverage. A cheap id-shape guard that flags a malformed id in `vods.json` would catch that class of mistake at sync time.
 
 ## Cleanup
@@ -28,7 +28,7 @@
 
 ## Code Smells
 
-- **Hardcoded layer type detection** — `setupLayers.js:41` checks `url.endsWith("gate.json") || url.endsWith("bastion.json")` for z-index boosting: the engine reaching into a data repo's filenames. A `zIndex` field on the layer JSON would do it properly. The photo layer will want a z-order of its own, which is the point at which this is worth fixing. Pinned by tests in `setupLayers.test.js`, so a fix has to update them deliberately.
+- **Hardcoded layer type detection** — `setupLayers.js` checks `url.endsWith("gate.json") || url.endsWith("bastion.json")` for z-index boosting: the engine reaching into a data repo's filenames. A `zIndex` field on the layer JSON would do it properly. The photo layer did *not* end up forcing this — its pins are `divIcon` markers that sit in the normal marker pane and look fine there — so the smell is unchanged and still worth fixing on its own merits. Pinned by tests in `setupLayers.test.js`, so a fix has to update them deliberately.
 - **Coordinate clamping duplicated 3 times** in `setupCoordinates.js` (lines 87-88, 168-169, 214-215). Could extract a small `clampCoord(value, min, max)` helper.
 
 ## In-Code TODOs

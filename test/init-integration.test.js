@@ -36,7 +36,15 @@ function makeDimData(overrides = {}) {
   };
 }
 
-const overworldDim = makeDimData();
+const overworldDim = makeDimData({
+  layers: [
+    { id: 1, name: "Test Layer", url: "data/overworld/test.json" },
+    { id: 102, name: "スクリーンショット", url: "data/overworld/photos.json" },
+  ],
+  // 20240115 has photos but no tiles, which is the common case: most photo
+  // dates are sessions where nobody screenshotted a map.
+  photoDates: { "20240101": 2, "20240115": 3 },
+});
 const netherDim = makeDimData({
   defaultZoom: 1,
   tilePath: "tiles/overworld",
@@ -56,6 +64,19 @@ const layerData = {
   name: "Test Layer",
   markers: [
     { name: "Spawn", pos: [0, 64, 0] },
+  ],
+};
+
+const photoLayerData = {
+  id: 102,
+  name: "スクリーンショット",
+  kind: "photos",
+  photos: [
+    { f: "20240101/a", date: "20240101", pos: [0, 64, 0], src: "filename" },
+    { f: "20240101/b", date: "20240101", pos: [500, 64, 500], src: "filename" },
+    { f: "20240115/c", date: "20240115", pos: [0, null, 0], src: "filename" },
+    { f: "20240115/d", date: "20240115", pos: [900, null, 900], src: "filename" },
+    { f: "20240115/e", date: "20240115", pos: [-900, null, -900], src: "filename" },
   ],
 };
 
@@ -83,6 +104,7 @@ function mockFetch(url) {
     "data/dates.json": datesJson,
     "data/vods.json": vodsJson,
     "data/overworld/test.json": layerData,
+    "data/overworld/photos.json": photoLayerData,
     "data/nether/test.json": netherLayerData,
   };
   // tile replacement cache: match data/{dim}/{date}-{mode}.json
@@ -129,6 +151,7 @@ beforeAll(async () => {
           <li><a href="#locate" role="tab"></a></li>
           <li><a href="#layers" role="tab"></a></li>
           <li><a href="#timeline" role="tab"></a></li>
+          <li><a href="#photos" role="tab"></a></li>
           <li><a href="#link" role="tab"></a></li>
           <li><a href="#info" role="tab"></a></li>
         </ul>
@@ -172,6 +195,10 @@ beforeAll(async () => {
           <button id="timeline-button-left"></button>
           <div id="timeline-current"></div>
           <button id="timeline-button-right"></button>
+        </div>
+        <div class="leaflet-sidebar-pane" id="photos">
+          <div id="photos-status"></div>
+          <div id="photos-list"></div>
         </div>
         <div class="leaflet-sidebar-pane" id="link">
           <input type="checkbox" id="permalink-checkbox-date">
@@ -303,5 +330,93 @@ describe("init and changeDim integration", () => {
     expect(mymap.dim).toBe("n");
     // Nether lines should still exist from first visit
     expect(mymap.layerCache["nether-lines"]).toBeDefined();
+  });
+});
+
+describe("photo layer integration", () => {
+  let mymap;
+
+  // One Leaflet map per jsdom container, so this continues with the map the
+  // suite above left behind -- in the nether, after its last dimension switch.
+  beforeAll(async () => {
+    mymap = window.mymap;
+    if (mymap.dim !== "o") {
+      [mymap.dimData.startX, mymap.dimData.startZ] = mymap
+        .mcProject(mymap.getCenter())
+        .map(Math.round);
+      mymap.dimData.startZoom = mymap.getZoom();
+      mymap.hashObj.dD[mymap.dim].v = Array.from(mymap.dimData.visibleLayers);
+      mymap.updateHash();
+      mymap.setZoom(3, { animate: false });
+      await document.getElementById("locate-dimension-overworld").onchange();
+    }
+  });
+
+  it("registers the photos layer alongside the marker layers", () => {
+    expect(mymap.layerCache[102]).toBeDefined();
+    expect(mymap.layerCache[102].check).toBeDefined();
+  });
+
+  it("starts the photo filter on the selected tile date", () => {
+    expect(mymap.dimData.timeline.photoDate).toBe(mymap.dimData.timeline.date);
+  });
+
+  it("gives a photo-only date its own row", () => {
+    const rows = document.querySelectorAll(".timeline-photo-div");
+    expect(rows).toHaveLength(1);
+    expect(rows[0].textContent).toContain("3枚");
+  });
+
+  it("does not give a tile date a second row", () => {
+    // 20240101 has both tiles and photos: the radio it already has is enough.
+    const rows = [...document.querySelectorAll(".timeline-photo-div")];
+    expect(rows.some((r) => r.textContent.includes("20240101"))).toBe(false);
+  });
+
+  it("counts every photo in the month summary, row or no row", () => {
+    const summaries = [...document.querySelectorAll(".timeline-details-summary")]
+      .map((e) => e.innerHTML)
+      .filter((h) => h.includes("📷"));
+    expect(summaries.length).toBeGreaterThan(0);
+    expect(summaries.some((h) => h.includes("(📷5)"))).toBe(true);
+  });
+
+  it("draws pins once the layer is switched on", async () => {
+    const check = mymap.layerCache[102].check;
+    check.checked = true;
+    await check.onchange();
+    expect(document.querySelectorAll(".photo-pin").length).toBeGreaterThan(0);
+  });
+
+  it("a photo-only row keeps the terrain on the nearest earlier tile date", async () => {
+    await document.querySelector(".timeline-photo-div").onclick();
+    expect(mymap.dimData.timeline.photoDate).toBe("20240115");
+    expect(mymap.dimData.timeline.date).toBe("20240101");
+  });
+
+  it("marks the photo row it selected", () => {
+    expect(
+      document.querySelector(".timeline-photo-div").classList.contains(
+        "timeline-photo-current"
+      )
+    ).toBe(true);
+  });
+
+  it("setTimelineDate pairs a photo with the terrain of its day", async () => {
+    await mymap.setTimelineDate("20240201");
+    expect(mymap.dimData.timeline.photoDate).toBe("20240201");
+    expect(mymap.dimData.timeline.date).toBe("20240201");
+    expect(document.getElementById("map-timeline-20240201").checked).toBe(true);
+  });
+
+  it("scrubbing back to before the first photo empties the map", async () => {
+    document.getElementById("timeline-checkbox-exact").checked = true;
+    await document.getElementById("timeline-checkbox-exact").onchange();
+    await mymap.setTimelineDate("20240201");
+    expect(document.querySelectorAll(".photo-pin")).toHaveLength(0);
+  });
+
+  it("carries the photo date into the permalink hash", () => {
+    expect(mymap.hashObj.dD.o.h.p).toBeDefined();
   });
 });

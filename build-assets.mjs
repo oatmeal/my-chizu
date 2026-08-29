@@ -45,6 +45,17 @@ await fsPromises.writeFile(
     .replace("***OG_LOCALE***", site.og.locale)
     .replace("***ABOUT_TITLE***", site.aboutTitle)
     .replace("***ABOUT_HTML***", site.aboutHtml)
+    .replace(
+      "***PHOTOS_CONFIG***",
+      // Relative by default. If the photo set ever outgrows the data repo,
+      // pointing these at another origin is a config edit and a file move: a
+      // plain <img> loads cross-origin without CORS, so no code changes with it.
+      JSON.stringify({
+        baseUrl: "photos/",
+        thumbUrl: "photos/thumb/",
+        ...site.photos,
+      })
+    )
 );
 
 // Copy data repo static files (e.g. og.jpeg) into deploy/, overriding engine files if needed

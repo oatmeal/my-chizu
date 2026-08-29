@@ -221,3 +221,159 @@ details {
 .fade-out-500 {
   animation: fadeOut ease 0.5s;
 }
+
+/* ── Screenshot photos ──────────────────────────────────────────────────── */
+
+/* A photo pin is its own thumbnail: the Google Maps look, and the only thing
+   that makes a map of 280 screenshots readable at a glance. */
+.photo-pin img {
+  display: block;
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border: 2px solid #fff;
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  background-color: #444;
+}
+.photo-pin {
+  cursor: pointer;
+}
+.photo-pin:hover img {
+  border-color: #ffd54a;
+}
+/* In fill mode a photo that postdates the selected date is shown but faded,
+   the same way the timeline treats a tile it had to borrow from the future. */
+.photo-pin-dim img {
+  opacity: 0.35;
+}
+.photo-pin-count {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  padding: 0 4px;
+  background-color: #d33;
+  color: #fff;
+  border: 1px solid #fff;
+  border-radius: 9px;
+  font-size: 0.72rem;
+  line-height: 17px;
+  text-align: center;
+  font-weight: bold;
+}
+
+#photo-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background-color: rgba(0, 0, 0, 0.88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#photo-lightbox[hidden] {
+  display: none;
+}
+#photo-lightbox-image {
+  max-width: 92vw;
+  max-height: 82vh;
+  object-fit: contain;
+}
+#photo-lightbox button {
+  position: absolute;
+  background: none;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  font-size: 2.5rem;
+  line-height: 1;
+  padding: 8px 16px;
+  text-shadow: 0 0 6px #000;
+}
+#photo-lightbox-close {
+  top: 8px;
+  right: 8px;
+  font-size: 1.8rem;
+}
+#photo-lightbox-prev {
+  left: 0;
+}
+#photo-lightbox-next {
+  right: 0;
+}
+#photo-lightbox-bar {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  padding: 10px 16px;
+  box-sizing: border-box;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+#photo-lightbox-bar button {
+  position: static;
+  font-size: 0.9rem;
+  padding: 4px 10px;
+  border: 1px solid #aaa;
+  border-radius: 4px;
+}
+#photo-lightbox-bar button:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+#photos-status {
+  margin-bottom: 8px;
+}
+#photos-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.photos-item {
+  width: 96px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  overflow: hidden;
+}
+.photos-item img {
+  width: 96px;
+  height: 54px;
+  object-fit: cover;
+  border-radius: 4px;
+  display: block;
+}
+.photos-item:hover img {
+  outline: 2px solid #ffd54a;
+}
+.photos-item span {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.photos-item-dim img {
+  opacity: 0.4;
+}
+
+/* A photo-only date has no tiles to select, so its row is not a radio -- it
+   sits alongside the VOD rows and sets the photo filter instead. */
+.timeline-photo-div {
+  background-color: rgba(180, 220, 255, 0.35);
+  padding-left: 8px;
+  margin-top: 2.5px;
+  margin-bottom: 2.5px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.timeline-photo-div:hover {
+  background-color: rgba(180, 220, 255, 0.6);
+}
+.timeline-photo-current {
+  outline: 2px solid #4a90d9;
+}

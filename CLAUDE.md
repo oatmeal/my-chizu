@@ -86,7 +86,8 @@ vite.config.js         # Vite/Vitest configuration
   build.yml            # Reusable GHA workflow: build + deploy to GitHub Pages
 notes.md               # Internal data structure documentation
 TODO.md                # Known bugs, gaps and in-code TODOs
-PLAN_PHOTOS.md         # Design for the screenshot photo layer (not started)
+PLAN_PHOTOS.md         # Design for the screenshot photo layer (phases 0-3 done; 4 is OCR)
+PLAN_CONTRIBUTORS.md   # Design for publishing other people's photos, credited (not started)
 ```
 
 ## Data Repo Interface

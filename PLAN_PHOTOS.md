@@ -24,6 +24,16 @@ any form — not on the map, not as a timeline row, not as a count. The
 classifier still has a `chat` category, because that is how those files are
 kept out of the photo set, and it must stay: the category is the exclusion.
 
+The rule is narrower than its first wording suggested, and the narrower reading
+is the right one: it is about a screenshot that is **nothing but a chat log**,
+among the owner's own raw files. **Chat that appears incidentally behind a
+photograph of a place is fine**, and is not a reason to hold the photo. That
+distinction is what the `chat*.png` filename rule was always drawing.
+
+**Photos by other people** — the same layer, credited, sourced from the
+server's Discord — are designed in `PLAN_CONTRIBUTORS.md`. It changes what goes
+into the layer, not how any of this draws it.
+
 This doc is the shared context across sessions. When something here is settled
 by writing code, update the section rather than leaving the doc describing a
 plan the code no longer follows.
@@ -564,6 +574,15 @@ turns up.
   already drops `y` when it is null, so populating either needs no viewer
   change. What does land here is the open question below — what to do with the
   photos OCR dates but cannot place.
+
+  **The HUD half of this is shared with `PLAN_CONTRIBUTORS.md` and should be
+  built once.** That plan needs the same `位置` reader, and specifies it against
+  the Discord set deliberately, because those images are messier than `../raw`
+  — hand crops, phone layouts, arbitrary sizes — so a reader that survives them
+  arrives here already hardened. It is measured at 42% on that set, with the
+  preprocessing that works written up in `mc-screenshot-to-map/PLAN_CONTRIBUTORS.md`.
+  Whichever feature is built first should build the reader as a shared
+  component, not a private one.
 
 ## Open questions
 

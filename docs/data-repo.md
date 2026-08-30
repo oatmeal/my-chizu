@@ -1,0 +1,135 @@
+# The data-repo contract
+
+The engine ships no data. A data repo supplies the tiles, the layer files, the
+dates and the site's identity; `build.mjs` reads that repo and writes
+`deploy/`. This file is the contract between the two — change anything here and
+every data repo has to follow.
+
+Reference implementation: [oatmeal/llmr](https://github.com/oatmeal/llmr).
+
+## Layout
+
+```
+data/
+  config.json          per-dimension spatial config (X0, Z0, defaults, tile paths)
+  dates.json           YYYYMMDD → display string
+  vods.json            [{id, date, title, t?}] — see vods.md
+  overworld/*.json     layer files, including the optional photos.json
+  nether/*.json
+  end/*.json
+tiles/                 tiles/[dim]/[zoom]/[x]/[z]/[date].png
+photos/                optional: [date]/[stem].webp plus thumb/[date]/[stem].webp
+static/                optional: site assets copied into deploy/ (e.g. og.jpeg)
+site.json              site identity
+```
+
+Dimension codes are `o` / `n` / `e`; the directories use the full names.
+
+## Layer files
+
+```json
+{ "id": 3, "name": "鉄道", "dimension": "overworld",
+  "markers": [ { "name": "…", "pos": [x, y, z] } ],
+  "lines":   [ { "name": "…", "pts": [[x,y,z], …] } ] }
+```
+
+- **`id` must be a number, and unique across *all* dimensions.** `build-data.mjs`
+  collects ids into one dict for the whole build and sorts with `a.id - b.id`, so
+  a duplicate throws and a string id yields `NaN`. `llmr` bands them by dimension
+  — overworld 1xx, nether 5x, end 2xx.
+- A line may carry any other option [Leaflet's polyline](https://leafletjs.com/reference.html#polyline)
+  accepts.
+- A file may carry any combination of content arrays; see `RENDERERS` in
+  [`viewer.md`](viewer.md#rendering-layer-content).
+- **`kind`** selects a renderer other than markers/lines. `"photos"` is the only
+  one today.
+
+### A photo layer
+
+```json
+{ "id": 102, "name": "スクリーンショット", "dimension": "overworld",
+  "kind": "photos",
+  "photos": [
+    { "f": "20240828/6827x740z", "date": "20240828",
+      "pos": [6827, null, 740], "src": "filename" }
+  ] }
+```
+
+| field | |
+|---|---|
+| `f` | path stem under `baseUrl`/`thumbUrl`; the encoder owns the extension |
+| `date` | `YYYYMMDD`, the date the photo counts as taken on |
+| `pos` | `[x, y, z]`, dimension-native, exactly as a marker is. `y` is `null` when the position came from a filename, and the caption drops it |
+| `src` | `filename` \| `hud` \| `manual` |
+| `time` | `HH:MM`, omitted when there was no taskbar clock in the screenshot |
+| `title` | optional, hand-written, never generated |
+
+`photos.json` is **rewritten, never merged**, by the publish step in
+`mc-screenshot-to-map` — a photo is on the map only if the layer lists it, unlike
+a tile, which the site build discovers by globbing filenames. See
+[`photos.md`](photos.md).
+
+## `site.json`
+
+```json
+{
+  "title": "Page <title>",
+  "og": {
+    "title": "OG title",
+    "url": "https://...",
+    "image": "https://.../og.jpeg",
+    "description": "...",
+    "locale": "ja_JP"
+  },
+  "aboutTitle": "Header text for the info sidebar pane",
+  "aboutHtml": "<p>HTML content for the info sidebar pane</p>",
+  "photos": {
+    "baseUrl": "photos/",
+    "thumbUrl": "photos/thumb/"
+  },
+  "vods": {
+    "playlists": ["https://www.youtube.com/playlist?list=..."],
+    "extraVideos": ["videoId"],
+    "titleCleanup": {
+      "vocab": ["extra boilerplate tag tokens to strip"],
+      "overrides": { "videoId": "hand-written title" }
+    }
+  }
+}
+```
+
+`photos` says where the photo layer loads its images from. Both URLs are relative
+to the deploy root by default and are substituted into `index.html` as
+`window.photosConfig`, so moving the set to another origin is a config edit and a
+file move rather than a code change. `lib/photos.test.js` pins that an absolute
+base passes through untouched.
+
+`vods` is read **only** by `scripts/sync-vods.mjs`; the build ignores it. See
+[`vods.md`](vods.md).
+
+## `index.html` tokens
+
+`build-assets.mjs` substitutes these from `site.json`:
+
+`***TITLE***`, `***OG_TITLE***`, `***OG_URL***`, `***OG_IMAGE***`,
+`***OG_DESCRIPTION***`, `***OG_LOCALE***`, `***ABOUT_TITLE***`,
+`***ABOUT_HTML***`, `***PHOTOS_CONFIG***`
+
+## Build output
+
+`build-assets.mjs` creates the `deploy/` skeleton: the static files, the Leaflet
+dependencies, and the bundled `map.js`.
+
+`build-data.mjs` scans `tiles/` and writes into `deploy/data/`:
+
+- **`[dim].json`** — bounds, the date list, `fileDates` per tile key, `photoDates`
+  (a count per date that has photos), the tile path and size, and the layer list.
+- **Each layer's `kind`**, copied into that metadata. The viewer has to tell a
+  photo layer from a marker layer *before* it fetches either — to keep it out of
+  the layers panel, and out of the nether's show-everything default.
+- **Per-date tile replacement caches**, `data/[dim]/[date]-[mode].json`.
+
+It then copies `tiles/` and `photos/` into `deploy/`. **A layer's photos extend
+the dimension's bounds**, so a far-flung screenshot is reachable on the map.
+
+`test/build.test.js` runs a real build against a fixture repo.

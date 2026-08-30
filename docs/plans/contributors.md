@@ -7,16 +7,16 @@ all placed by a coordinate in their filename. This doc covers the next source:
 screenshots other members posted to the server's Discord, published **with
 credit** and **only with permission**.
 
-It is the sibling of `PLAN_PHOTOS.md` and keeps the same split. What lives here
+It is the sibling of [`../photos.md`](../photos.md) and keeps the same split. What lives here
 is the **data contract** — `photos.json` and what the viewer may assume about
 it — plus everything downstream. The extraction half belongs in
 `mc-screenshot-to-map` and is **recorded there**, in its own
-`PLAN_CONTRIBUTORS.md`: the export reader, the HUD OCR, the pipeline changes,
+`docs/plans/contributors.md`: the export reader, the HUD OCR, the pipeline changes,
 the review app and the publish step, in the detail you would want if you opened
 a session in that repo. Sections below that touch extraction are summaries with
 a pointer, not the record.
 
-Read `PLAN_PHOTOS.md` first. Everything it settles about clustering, the
+Read [`../photos.md`](../photos.md) first. Everything it settles about clustering, the
 lightbox, the photos pane and the timeline still holds; this changes what goes
 *into* the layer, not how it is drawn.
 
@@ -66,13 +66,13 @@ viewer cannot detect and a reader would never suspect.
 
 ### The timeline gains about 61 photo-only dates
 
-`PLAN_PHOTOS.md` predicted the photo-only row would be most of the timeline,
+`../photos.md` predicted the photo-only row would be most of the timeline,
 found it was 19 rows, and built around it being rare. This takes it to about 80.
 
 The row type works and needs no change. What deserves a look once the real set
 is in is whether a timeline that is now a third photo-only rows still reads
 well, and whether the per-date `(📷n)` counts still carry the weight
-`PLAN_PHOTOS.md` gives them. **Do not pre-solve it** — look at it in the
+`../photos.md` gives them. **Do not pre-solve it** — look at it in the
 preview, the way the first review pass was done.
 
 ### HUD OCR gives these photos a real `y`
@@ -179,7 +179,7 @@ those will be rejected as not-a-place anyway.
 
 ### Incidental chat is fine
 
-`PLAN_PHOTOS.md` stated the chat rule more broadly than it was meant, and has
+`../photos.md` stated the chat rule more broadly than it was meant, and has
 been narrowed. The rule is about a screenshot that is **nothing but a chat
 log**, among the owner's own raw files. **Chat visible incidentally behind a
 photograph of a place is fine** and is not a reason to hold it.
@@ -221,14 +221,14 @@ outline:
 - **A — read the export.** Parse the HTML, apply `contributors.csv` as the
   gate, convert the timezone, write a processed tree.
 - **B — the HUD reader.** Built as a component serving both this and
-  `PLAN_PHOTOS.md` Phase 4, against this set because it is the messier corpus.
+  [`photos-ocr.md`](photos-ocr.md), against this set because it is the messier corpus.
 - **C — pipeline.** Four schema gaps, a second discovery path, encode the 195.
 - **D — review app.** Author, message text, an editable date, and a placement
   UI. The largest phase.
 - **E — viewer.** `authors`, the caption credit, tests. Everything in this doc's
   "Viewer changes".
 - **F — publish.** Review all 195, then deploy. Settle the encoding first, for
-  the reason `PLAN_PHOTOS.md` gives.
+  the reason `../photos.md` gives.
 
 D was initially assumed to be the long pole because placing ~113 photos looked
 like it needed a real map embedded in the review app. It does not:

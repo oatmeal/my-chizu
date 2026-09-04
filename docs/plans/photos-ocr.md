@@ -11,8 +11,8 @@ OCR the HUD coordinate line and the taskbar clock in the raw screenshots. That:
 
 - brings in the **214 descriptively-named screenshots** that carry no coordinate
   in their filename and are therefore not in the layer at all;
-- gives the existing 280 a **wall-clock time** and a **real `y`**, both of which
-  are `null` or absent today.
+- gives the photos already placed from a filename a **wall-clock time** and a
+  **real `y`**, both of which are `null` or absent today.
 
 **Order matters: read the clock before cropping it away.** Roughly 40 files have
 no taskbar at all and have nothing beyond their folder date.

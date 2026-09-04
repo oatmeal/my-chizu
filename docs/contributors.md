@@ -10,8 +10,8 @@ is [`photos.md`](photos.md#who-took-it), and the schema is
 [`data-repo.md`](data-repo.md#a-photo-layer). This doc is the cross-repo
 overview: what was being built, and why the data looks the way it does.
 
-The photo layer began as 280 screenshots, all taken by the site owner and all
-placed by a coordinate in their filename. This doc covers the second source:
+The photo layer began as a few hundred screenshots, all taken by the site owner
+and all placed by a coordinate in their filename. This doc covers the second source:
 screenshots other members posted to the server's Discord, published **with
 credit** and **only with permission**.
 
@@ -72,15 +72,18 @@ Consequence here: nothing, if the tool repo gets it right. It is stated because
 a `date` in `photos.json` that is silently off by one is the kind of error the
 viewer cannot detect and a reader would never suspect.
 
-### The timeline gains about 61 photo-only dates
+### The timeline gains a good many photo-only dates
 
 `photos.md` predicted the photo-only row would be most of the timeline, found it
-was 19 rows, and built around it being rare. This takes it to about 80.
+was rare instead, and built around it being rare. This source multiplies those
+rows several times over.
 
-**Measured after the publish: 57**, in the overworld. Of its 181 photo dates,
-124 fall on a date that already has tiles, so most of the new photos joined a
-row rather than adding one — which is the same reason the first estimate was
-wrong in the same direction. The row type works and needs no change.
+It still came in under the estimate, and for the same reason the estimate was
+too high: most photo dates fall on a date that already has tiles, so most of the
+new photos joined a row rather than adding one. The row type works and needs no
+change. (The live figure is a `python3` one-liner at the foot of
+[`../STATUS.md`](../STATUS.md); it is not written down here, because it moves
+with every deploy.)
 
 What deserves a look now the real set is in is whether the timeline still reads
 well with three times the photo-only rows, and whether the per-date `(📷n)`
@@ -92,7 +95,7 @@ look at it in the preview, the way the first review pass was done.
 42% of the set is placed by reading `位置: 6603, 160, 145` out of the frame,
 which carries a height. No filename-derived photo has one. `photoCaption`
 already renders `y` and already drops it when null, so these get a fuller
-caption than the existing 265 with no viewer change at all.
+caption than the filename-placed photos do, with no viewer change at all.
 
 ## Decisions
 
@@ -261,13 +264,12 @@ library. The phase is still the largest, but its shape is known.
 
 Two are answered, two are for the preview, one stands.
 
-- **How many of the 195 survive review?** **137.** The guess was 90–110, so the
-  round kept somewhat more than expected. `photos.json` lists 417 across the
-  three dimensions — 280 the owner's, 66 鹿(本物）'s and 71 りりまる's — which
-  makes this source **33%** of the combined set. The "about a third" the guess
-  implied was right, even though the count under it was low.
+- **How many of the 195 survive review?** The guess was 90–110, and the round
+  kept somewhat more than that. Against the owner's own photos it makes this
+  source **about a third** of the combined set — which is what the guess
+  implied, even though the count under it was low.
 - **Should the photos pane filter by author?** **Yes, and it is built.** With
-  three people and a third of the set from two of them, "show me theirs" is a
+  three people and about a third of the set from two of them, "show me theirs" is a
   real question the map could not answer. It narrows the pins as well as the
   list, and the reasoning for each of its edges is in
   [`photos.md`](photos.md#the-filter-is-a-set-of-chips-in-the-pane).

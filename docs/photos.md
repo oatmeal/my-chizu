@@ -60,11 +60,16 @@ a tile index rather than a player position. The rules and their evidence are in
 dates have no tiles at all**, carrying 45 photos between them.
 
 The original design predicted the photo-only row would be most of the timeline;
-it is 19 rows. World-coord photos come from sessions where somebody was actively
-mapping, so they land on tile dates far more often than the whole raw set would.
-The row type is still needed and still built — it is just rare, and that is what
-makes each tile date's own `(📷n)` count the load-bearing part rather than the
-extra row.
+at this survey it was a couple of dozen. World-coord photos come from sessions
+where somebody was actively mapping, so they land on tile dates far more often
+than the whole raw set would. The row type is still needed and still built — it
+was just rare, and that is what makes each tile date's own `(📷n)` count the
+load-bearing part rather than the extra row.
+
+Photos from Discord changed that: they are not mapping-session screenshots and
+land on tile dates much less often, so the photo-only row is now several times
+commoner than this section found it. See
+[`contributors.md`](contributors.md#the-timeline-gains-a-good-many-photo-only-dates).
 
 ## What the viewer is handed
 

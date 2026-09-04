@@ -230,10 +230,16 @@ checkbox in the tab — 「このタブを閉じても写真を地図に表示�
 for people who want to browse the map with the photos on.
 
 The plumbing is kept anyway. `setupPhotoPanel`'s `apply` still adds and removes
-the same layer ids from `visibleLayers`, so the permalink still carries them and a
-link to a photo-covered view still reproduces it; the checkbox is seeded from the
-incoming hash on the first `dimviewready` and then applied to every dimension the
-visitor moves to. What changed is who holds the switch, not where the state lives.
+the same layer ids from `visibleLayers`, so a link to a photo-covered view still
+reproduces it; the checkbox is seeded from the incoming hash on the first
+`dimviewready` and then applied to every dimension the visitor moves to. What
+changed is who holds the switch, not where the state lives.
+
+**In the hash that state is `pv`, not a layer.** `apply` writes it on every run,
+so it is current whoever moved the checkbox and whenever; the layer id it used to
+publish is stripped from `v` on the way out and still understood on the way in.
+The reasoning and the four assembly points are in
+[`viewer.md`](viewer.md#pv-replaced-a-layer-id-and-still-reads-one).
 
 Two consequences worth knowing:
 

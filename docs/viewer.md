@@ -74,11 +74,35 @@ hashObj:
           and one filter for the whole map rather than one per dimension.
           Absent is everybody; `[]` is everybody switched off. A `ph` for a
           photo this hides adds that photographer on arrival — see photos.md
+  pv      photos stay on the map with the photos tab shut. `1` when they do,
+          absent when they do not. One setting for the whole map, like `by`,
+          because the checkbox it stands for outlives a dimension switch
   dD      dimension dict, for each dimension:
     c     coords: X, Z, z (zoom)
-    v     visible layers
+    v     visible layers — never the photo layers, which are `pv`
     h     timeline: d (date), f (fill), e (exact), p (photo date)
 ```
+
+### `pv` replaced a layer id, and still reads one
+
+The photos-stay-up state used to ride `v` as the photo layer's id, which worked
+— the restore loop switches the layer on and the pane read it back off — but it
+published a number `build-data.mjs` hands out as the public interface for a
+checkbox, and made the shortest link to a photo-covered map carry a layer list
+to say one bit.
+
+So `pv` is written and `v` is still read: `hashPhotosVisible` takes the new key
+first and falls back to a photo layer id in `v`, so links already sent out keep
+opening the map they described. Nothing writes the old spelling any more —
+`hashLayerIds` strips photo layers at all four points where `v` is assembled
+(`map.js` twice, `setupPermalink.js`, and the photo permalink in
+`setupPhotos.js`), which is the whole boundary between the internal
+`visibleLayers` set and the published one.
+
+`visibleLayers` itself is unchanged and still holds the photo layer at runtime.
+On arrival the layer is no longer restored from `v`; the photos pane loads it
+from the setting on `dimviewready`, which fires after the restore loop and is
+the same path a click on the checkbox already took.
 
 `buildPermalinkUrl()` in `lib/permalink.js` is the only place a hash URL is
 assembled. Keep it that way — the photo permalink is the second caller and it

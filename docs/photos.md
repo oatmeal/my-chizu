@@ -460,11 +460,30 @@ narrowing the set narrows both.
 - **Turning the last author off shows nothing**, and should: the alternative is
   a set of checkboxes that silently disagrees with itself. The status line says
   「絞り込み中の」 so an empty list is not misread as an empty place.
-- **It does not ride the hash.** A filter is a way of reading the map for a
-  moment, not a state you send somebody — and a permalink that arrives filtered
-  is a permalink that can arrive pointing at nothing. If it ever should
-  persist, it is a `viewState` field and a `buildPermalinkUrl` change, not a
-  local edit here.
+- **It rides the hash as `by`, and that was a reversal.** It was first built
+  deliberately *not* to: a filter is a way of reading the map for a moment
+  rather than a state you send somebody, and a permalink that arrives filtered
+  is a permalink that can arrive pointing at nothing. The first half turned out
+  to be wrong — a filtered map is exactly the thing somebody wants to send,
+  which is the whole reason the filter exists — and the second half was a real
+  risk with a small answer, below. `by` is a list of the ids the pane is letting
+  through: absent for everybody, `[]` for everybody switched off, which is a
+  state the pane allows and so a state a link can carry. It is top-level rather
+  than filed under a dimension because the pane keeps one filter for the whole
+  map; author ids are global.
+- **An arriving photo outranks an arriving filter, by the smallest margin.**
+  `find` searches the pins that were *drawn*, so a `ph` naming a photo the
+  filter hides would land on nothing and the link would silently do nothing —
+  the failure the original decision was avoiding. So a `ph` adds its
+  photographer to the filter on arrival and leaves the rest of it standing: the
+  link is about that photo, and the visitor still gets the map that was sent
+  with one more person switched on. Every change to the filter goes through one
+  function, which is what keeps the hash from drifting from the pane.
+- **Anything that is not a list of ids is discarded whole.** A half-read filter
+  is a map nobody chose; an unreadable one opens unfiltered, which is what every
+  visitor without a link gets. Ids naming nobody survive parsing, since the
+  roster is not loaded when the hash is read, and the first click on any chip
+  rebuilds the set from the roster and drops them.
 
 ## The lightbox
 

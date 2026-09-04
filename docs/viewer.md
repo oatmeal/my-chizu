@@ -70,6 +70,10 @@ hashObj:
   ph      a photo's file stem to open the lightbox on, from a photo permalink.
           An arrival instruction, not state: consumed on the first
           `dimviewready` rather than kept
+  by      the photos pane's author filter, as the ids it lets through. State,
+          and one filter for the whole map rather than one per dimension.
+          Absent is everybody; `[]` is everybody switched off. A `ph` for a
+          photo this hides adds that photographer on arrival — see photos.md
   dD      dimension dict, for each dimension:
     c     coords: X, Z, z (zoom)
     v     visible layers

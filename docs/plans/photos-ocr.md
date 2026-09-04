@@ -24,13 +24,18 @@ populating either needs **no viewer change**. The extraction, the review UI and
 the publish step are `mc-screenshot-to-map`'s.
 
 **The HUD reader is shared with
-[`contributors.md`](contributors.md) and should be built once.** That plan needs
-the same `位置` reader and specifies it against the Discord set deliberately,
-because those images are messier than `../raw` — hand crops, phone layouts,
-arbitrary sizes — so a reader that survives them arrives here already hardened.
-It is measured at 42% on that set, with the preprocessing that works written up in
-`mc-screenshot-to-map/docs/plans/contributors.md`. Whichever feature is built
-first should build the reader as a shared component, not a private one.
+[`../contributors.md`](../contributors.md), and it is already built.** That
+feature needed the same `位置` reader and specified it against the Discord set
+deliberately, because those images are messier than `../raw` — hand crops, phone
+layouts, arbitrary sizes — so a reader that survives them arrives here already
+hardened. It shipped as `mc-screenshot-to-map/hud.py` — 105 reads on that
+corpus after two threshold corrections, 86 of them surviving the vote gate that
+followed — and it has since been run over
+`../raw` as well: `scripts/freeze_hud_reads.py` records `hud_x/y/z` on the
+owner's own photos without applying them. So this plan does not start from
+nothing — the reader exists, it is tested, and the work here is the applying.
+The record is `mc-screenshot-to-map/docs/plans/contributors.md` §Phase B and
+`docs/plans/hud-gate.md`.
 
 ## A position review has to be built
 

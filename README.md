@@ -70,6 +70,11 @@ A layer file with `kind: "photos"` draws located, dated screenshots as clustered
 thumbnail pins with a lightbox, filtered by the same timeline that selects the
 tiles. Point `site.json`'s `photos.baseUrl` / `photos.thumbUrl` at the images.
 
+**If more than one person took them**, give the layer an `authors` block and
+each photo a `by`. Every photo is then credited in the lightbox and in the
+photos pane, each author gets a colour on the pins and rows, and the pane grows
+a filter. Leave both out and the layer draws exactly as it does without them.
+
 The layer file format is in [`docs/data-repo.md`](docs/data-repo.md#a-photo-layer)
 and the design in [`docs/photos.md`](docs/photos.md). llmr's own photos are
 extracted and reviewed by

@@ -41,13 +41,15 @@ cases the first obvious approach is the one that was already tried and refuted.
 | Before touching | Read | Why it will cost you |
 |---|---|---|
 | `lib/setupPhotos.js`, `lib/photos.js`, clustering, the lightbox | [`docs/photos.md`](docs/photos.md) | A pure grid bounded average density and *nothing* bounded pin overlap; the lead photo has to be the newest **undimmed** one or a bright pin shows a photo the timeline says was never taken |
+| anything touching `by` or `authors` — the credit, the accent bar, the filter | [`docs/photos.md`](docs/photos.md#who-took-it), [`docs/contributors.md`](docs/contributors.md) | An author's colour is keyed on the **id**, never on a place in the registry — a layer lists only the authors it credits, so position would repaint the same person per dimension. A layer with no `authors` must render exactly as it did before the field existed |
 | `lib/map.js`, `lib/hash.js`, `lib/permalink.js`, dimension switching | [`docs/viewer.md`](docs/viewer.md) | `dimchange` vs `dimviewready` ordering; `ph` is an arrival instruction, not state; `buildPermalinkUrl` is the only place a hash URL may be assembled |
 | `build-data.mjs`, `build-assets.mjs`, any layer-file field | [`docs/data-repo.md`](docs/data-repo.md) | Layer `id` is a number unique across *all* dimensions; `kind` must reach the viewer before the layer file is fetched |
 | `lib/timeline.js`, `scripts/sync-vods.mjs`, `data/vods.json` | [`docs/vods.md`](docs/vods.md) | `id` must stay a bare video id — a `?t=` glued on makes the sync duplicate the video and report the real entry as stale |
 
-Live plans: [`docs/plans/photos-ocr.md`](docs/plans/photos-ocr.md),
-[`docs/plans/contributors.md`](docs/plans/contributors.md), and
+Live plans: [`docs/plans/photos-ocr.md`](docs/plans/photos-ocr.md), and
 [`docs/plans/backlog.md`](docs/plans/backlog.md) for bugs and in-code TODOs.
+Photos by other people is built; its design is
+[`docs/contributors.md`](docs/contributors.md).
 
 ## Tech stack
 
@@ -69,6 +71,19 @@ npm test                                     # vitest
 
 To see a photo change end to end without committing anything, follow
 "Previewing before you commit" in [`docs/photos.md`](docs/photos.md).
+
+**Do not drive the site with a headless browser.** Playwright and the like are
+not part of this project's toolchain, and Chromium does not run in this
+environment anyway. Anything that has to be *looked at* — a colour, a layout, a
+map at a real zoom — is built, served, and then looked at by a person:
+
+```bash
+node build.mjs ../llmr
+python3 -m http.server 8811 --directory ../llmr/deploy   # then open it
+```
+
+Say what to look at and where. `jsdom` under Vitest is for asserting that the
+right DOM was built, which is a different question and is already covered.
 
 ## Project structure
 

@@ -243,8 +243,10 @@ details {
   border-color: #ffd54a;
 }
 /* In fill mode a photo that postdates the selected date is shown but faded,
-   the same way the timeline treats a tile it had to borrow from the future. */
-.photo-pin-dim img {
+   the same way the timeline treats a tile it had to borrow from the future. The
+   author bar fades with it -- it describes the same photos. */
+.photo-pin-dim img,
+.photo-pin-dim .photo-pin-authors {
   opacity: 0.35;
 }
 /* Hovering the matching row in the photos pane. The ring matters less than the
@@ -255,6 +257,28 @@ details {
   border-color: #ffd54a;
   opacity: 1;
   box-shadow: 0 0 0 3px rgba(255, 213, 74, 0.85), 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+.photo-pin-highlight .photo-pin-authors {
+  opacity: 1;
+}
+/* Who took the photos in this pin. A bar along the foot rather than a coloured
+   border: the border is white for contrast against the map and is already spent
+   twice, on the hover colour and on the pane's highlight ring. The segments are
+   in proportion, so a merged cluster shows its real mix instead of picking a
+   winner. */
+.photo-pin-authors {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  bottom: 2px;
+  height: 4px;
+  display: flex;
+  overflow: hidden;
+  border-radius: 0 0 4px 4px;
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.35);
+}
+.photo-pin-authors i {
+  display: block;
 }
 .photo-pin-count {
   position: absolute;
@@ -404,11 +428,59 @@ details {
   flex-wrap: wrap;
   gap: 6px;
 }
+/* The author filter. One toggle per person, with the colour their pins and
+   rows wear, so the chips are the legend for the accent as well as the control
+   for it. Only drawn where there is more than one author. */
+#photos-authors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.photos-author {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  font: inherit;
+  font-size: 0.75rem;
+  color: inherit;
+  background-color: #f0f0f0;
+  border: 1px solid #ccc;
+  border-radius: 11px;
+  cursor: pointer;
+  opacity: 0.5;
+}
+.photos-author-on {
+  opacity: 1;
+  background-color: #fff;
+  border-color: #999;
+}
+.photos-author-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background-color: var(--author);
+  flex: 0 0 auto;
+}
+/* An unticked author keeps their colour visible but hollow, so the legend
+   still reads while the filter is off. */
+.photos-author:not(.photos-author-on) .photos-author-dot {
+  background-color: transparent;
+  box-shadow: inset 0 0 0 2px var(--author);
+}
+.photos-author-count {
+  color: #777;
+}
+
 .photos-item {
   width: 96px;
   cursor: pointer;
   font-size: 0.75rem;
   overflow: hidden;
+}
+.photos-item-frame {
+  position: relative;
 }
 .photos-item img {
   width: 96px;
@@ -416,6 +488,23 @@ details {
   object-fit: cover;
   border-radius: 4px;
   display: block;
+}
+/* The same bar the pin wears, in the same colour, so a row and its pin read as
+   one photo's two renderings. */
+.photos-item-author {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  border-radius: 0 0 4px 4px;
+}
+/* Under the label, not beside it: 96px is not wide enough for both, and the
+   date is what a row is found by. `.photos-item span` above already makes it a
+   truncating block. */
+.photos-item .photos-item-credit {
+  font-size: 0.68rem;
+  color: #777;
 }
 .photos-item:hover img {
   outline: 2px solid #ffd54a;

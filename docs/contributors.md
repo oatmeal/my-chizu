@@ -1,13 +1,21 @@
-# Photos by other people — design doc
+# Photos by other people
 
-Status: **Not started.** This is the plan; no code has been written.
+**Built and published.** All five phases shipped; where things stand is
+[`../STATUS.md`](../STATUS.md), and this file is the design and the record of
+how it was decided. It sat in `plans/` while it was a plan; it is here now
+because the work is done and the reasoning is still load-bearing.
 
-The photo layer today carries 280 screenshots, all taken by the site owner and
-all placed by a coordinate in their filename. This doc covers the next source:
+What the viewer draws with the result — the credit, the accent and the filter —
+is [`photos.md`](photos.md#who-took-it), and the schema is
+[`data-repo.md`](data-repo.md#a-photo-layer). This doc is the cross-repo
+overview: what was being built, and why the data looks the way it does.
+
+The photo layer began as 280 screenshots, all taken by the site owner and all
+placed by a coordinate in their filename. This doc covers the second source:
 screenshots other members posted to the server's Discord, published **with
 credit** and **only with permission**.
 
-It is the sibling of [`../photos.md`](../photos.md) and keeps the same split. What lives here
+It is the sibling of [`photos.md`](photos.md) and keeps the same split. What lives here
 is the **data contract** — `photos.json` and what the viewer may assume about
 it — plus everything downstream. The extraction half belongs in
 `mc-screenshot-to-map` and is **recorded there**, in its own
@@ -16,7 +24,7 @@ the review app and the publish step, in the detail you would want if you opened
 a session in that repo. Sections below that touch extraction are summaries with
 a pointer, not the record.
 
-Read [`../photos.md`](../photos.md) first. Everything it settles about clustering, the
+Read [`photos.md`](photos.md) first. Everything it settles about clustering, the
 lightbox, the photos pane and the timeline still holds; this changes what goes
 *into* the layer, not how it is drawn.
 
@@ -66,14 +74,18 @@ viewer cannot detect and a reader would never suspect.
 
 ### The timeline gains about 61 photo-only dates
 
-`../photos.md` predicted the photo-only row would be most of the timeline,
-found it was 19 rows, and built around it being rare. This takes it to about 80.
+`photos.md` predicted the photo-only row would be most of the timeline, found it
+was 19 rows, and built around it being rare. This takes it to about 80.
 
-The row type works and needs no change. What deserves a look once the real set
-is in is whether a timeline that is now a third photo-only rows still reads
-well, and whether the per-date `(📷n)` counts still carry the weight
-`../photos.md` gives them. **Do not pre-solve it** — look at it in the
-preview, the way the first review pass was done.
+**Measured after the publish: 57**, in the overworld. Of its 181 photo dates,
+124 fall on a date that already has tiles, so most of the new photos joined a
+row rather than adding one — which is the same reason the first estimate was
+wrong in the same direction. The row type works and needs no change.
+
+What deserves a look now the real set is in is whether the timeline still reads
+well with three times the photo-only rows, and whether the per-date `(📷n)`
+counts still carry the weight `photos.md` gives them. **Do not pre-solve it** —
+look at it in the preview, the way the first review pass was done.
 
 ### HUD OCR gives these photos a real `y`
 
@@ -179,7 +191,7 @@ those will be rejected as not-a-place anyway.
 
 ### Incidental chat is fine
 
-`../photos.md` stated the chat rule more broadly than it was meant, and has
+`photos.md` stated the chat rule more broadly than it was meant, and has
 been narrowed. The rule is about a screenshot that is **nothing but a chat
 log**, among the owner's own raw files. **Chat visible incidentally behind a
 photograph of a place is fine** and is not a reason to hold it.
@@ -199,19 +211,28 @@ decision states already exist.
 
 ## Viewer changes
 
-Small, and confined to the two files that already own photos.
+**Built.** Still confined to the two files that already own photos, and it grew
+by one thing the plan listed as an open question rather than as work — the
+filter, and with it the accent that makes a filter legible. The full account is
+[`photos.md`](photos.md#who-took-it); in outline:
 
-- **`lib/photos.js`** — `photoCaption` gains the credit. Pure, so it is tested
-  there: `[title, 撮影: name, when, where].filter(Boolean).join(" ・ ")`. An
-  unknown `by` renders no credit rather than an id.
-- **`lib/setupPhotos.js`** — read `authors` off the layer JSON and thread it
-  through to the caption and the pane row.
+- **`lib/photos.js`** — `photoCaption` gains the credit, exactly as specified:
+  `[title, 撮影: name, when, where].filter(Boolean).join(" ・ ")`, and an
+  unknown `by` renders no credit rather than an id. Plus `authorName`,
+  `authorColor`, `authorCounts` and `filterByAuthor`, and `clusterPhotos` now
+  reports each cluster's author split so a pin can draw one.
+- **`lib/setupPhotos.js`** — reads `authors` off the layer JSON and merges it
+  across layers, threads it to the caption, the pane row, the pin's accent bar
+  and the filter chips.
+- **`static/`** — a `#photos-authors` container in the pane, and the CSS for
+  the bar and the chips.
 - **`llmr/site.json`** — the About pane is the natural place to thank
   contributors. That is `aboutHtml`, site-owned, so it is a hand edit in the
-  data repo, not engine work.
+  data repo, not engine work. **Still to do.**
 
-Nothing else. The layer, clustering, lightbox, filmstrip, pane, hover linking
-and permalink all work unchanged on photos that now carry one more field.
+Everything else was untouched, as predicted: the layer, clustering, lightbox,
+filmstrip, hover linking and permalink all work unchanged on photos that carry
+one more field.
 
 ## Phases
 
@@ -221,14 +242,14 @@ outline:
 - **A — read the export.** Parse the HTML, apply `contributors.csv` as the
   gate, convert the timezone, write a processed tree.
 - **B — the HUD reader.** Built as a component serving both this and
-  [`photos-ocr.md`](photos-ocr.md), against this set because it is the messier corpus.
+  [`plans/photos-ocr.md`](plans/photos-ocr.md), against this set because it is the messier corpus.
 - **C — pipeline.** Four schema gaps, a second discovery path, encode the 195.
 - **D — review app.** Author, message text, an editable date, and a placement
   UI. The largest phase.
 - **E — viewer.** `authors`, the caption credit, tests. Everything in this doc's
   "Viewer changes".
 - **F — publish.** Review all 195, then deploy. Settle the encoding first, for
-  the reason `../photos.md` gives.
+  the reason `photos.md` gives.
 
 D was initially assumed to be the long pole because placing ~113 photos looked
 like it needed a real map embedded in the review app. It does not:
@@ -238,14 +259,32 @@ library. The phase is still the largest, but its shape is known.
 
 ## Open questions
 
-- **The Japanese credit label.** 「撮影: 鹿(本物）」 is the assumption. Not
-  confirmed.
-- **Should the photos pane filter by author?** Plausibly useful with three of
-  them; nothing needs it yet, and the pane is already co-primary with the pins
-  for a different reason.
-- **Do 80 photo-only timeline rows still read well?** Look at it in the preview.
-- **How many of the 195 survive review?** The guess from the contact sheets is
-  90–110, which would make this source about a third of the combined set.
+Two are answered, two are for the preview, one stands.
+
+- **How many of the 195 survive review?** **137.** The guess was 90–110, so the
+  round kept somewhat more than expected. `photos.json` lists 417 across the
+  three dimensions — 280 the owner's, 66 鹿(本物）'s and 71 りりまる's — which
+  makes this source **33%** of the combined set. The "about a third" the guess
+  implied was right, even though the count under it was low.
+- **Should the photos pane filter by author?** **Yes, and it is built.** With
+  three people and a third of the set from two of them, "show me theirs" is a
+  real question the map could not answer. It narrows the pins as well as the
+  list, and the reasoning for each of its edges is in
+  [`photos.md`](photos.md#the-filter-is-a-set-of-chips-in-the-pane).
+- **The Japanese credit label.** 「撮影: 名前」 shipped, as assumed. Still not
+  confirmed by anybody; it is one string in `photoCaption` if it is wrong.
+- **Do the extra photo-only timeline rows still read well?** The prediction was
+  about 80. The overworld actually has **57**, on 372 tile dates — of its 181
+  photo dates, 124 land on a date that already has tiles. So the row type is
+  still the minority it was designed around, three times what it was and not
+  the third of the timeline the estimate feared. Not pre-solved: look at it in
+  the preview, and at whether the per-date `(📷n)` counts still carry the
+  weight [`photos.md`](photos.md) gives them now they are on 181 rows.
+- **Does a per-author colour survive clustering?** Answered by building it —
+  the bar is split in proportion, so a merged pin shows its real mix instead of
+  picking a winner. See
+  [`photos.md`](photos.md#the-accent-is-a-bar-along-the-foot-of-the-pin). Worth
+  a look at real density before it is called settled.
 - **Other members' in-game nametags are visible in many of these photos.** The
   photographer has consented; the people in frame have not been asked. Those
   names are already public in the streams the map exists to accompany, so the

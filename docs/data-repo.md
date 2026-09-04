@@ -49,9 +49,10 @@ Dimension codes are `o` / `n` / `e`; the directories use the full names.
 ```json
 { "id": 102, "name": "スクリーンショット", "dimension": "overworld",
   "kind": "photos",
+  "authors": { "1": { "name": "pupu" }, "2": { "name": "鹿(本物）" } },
   "photos": [
     { "f": "20240828/6827x740z", "date": "20240828",
-      "pos": [6827, null, 740], "src": "filename" }
+      "pos": [6827, null, 740], "src": "filename", "by": 1 }
   ] }
 ```
 
@@ -61,8 +62,25 @@ Dimension codes are `o` / `n` / `e`; the directories use the full names.
 | `date` | `YYYYMMDD`, the date the photo counts as taken on |
 | `pos` | `[x, y, z]`, dimension-native, exactly as a marker is. `y` is `null` when the position came from a filename, and the caption drops it |
 | `src` | `filename` \| `hud` \| `manual` |
+| `by` | the id of whoever took it, resolved through `authors`. On **every** entry including the data repo owner's own; see below |
 | `time` | `HH:MM`, omitted when there was no taskbar clock in the screenshot |
 | `title` | optional, hand-written, never generated |
+
+`authors` is optional and a layer without it renders exactly as it did before
+the field existed — no credit, no accent, no filter. Where it is present:
+
+- **The key is an id, and the only published field is `name`.** Whatever the
+  producing repo knows about a person beyond their display name stays there.
+- **List only the authors that layer credits.** A photo layer for a dimension
+  where every photo is one person's names one person. The pane's filter lists
+  what it is given, so a contributor with nothing behind them is a dead
+  checkbox.
+- **`by` is on every entry, and there is no default.** An absent `by` is not
+  "the owner"; it is a photo the viewer will not credit. Stamping all of them
+  costs a couple of KB and buys an explicit rule.
+- **An id with no entry in `authors` renders no credit at all** rather than a
+  number. A photo whose author cannot be named is not a photo by somebody
+  called "3".
 
 `photos.json` is **rewritten, never merged**, by the publish step in
 `mc-screenshot-to-map` — a photo is on the map only if the layer lists it, unlike

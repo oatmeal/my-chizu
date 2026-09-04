@@ -1,8 +1,9 @@
 # Backlog
 
 Known bugs, gaps and in-code TODOs. Nothing here asserts project status — that is
-[`../../STATUS.md`](../../STATUS.md) — and the two live design plans are
-[`photos-ocr.md`](photos-ocr.md) and [`contributors.md`](contributors.md).
+[`../../STATUS.md`](../../STATUS.md) — and the one live design plan is
+[`photos-ocr.md`](photos-ocr.md). Photos by other people is built; its design
+moved to [`../contributors.md`](../contributors.md).
 
 ## Bugs
 
@@ -16,6 +17,16 @@ Known bugs, gaps and in-code TODOs. Nothing here asserts project status — that
   screen, just not on the pin. Fixing it properly means a per-photo dim class on
   the pin's `<img>` rather than on the cluster's wrapper, which the badge would
   then want to agree with.
+
+- **The lightbox frame resizes between photos of different natural sizes.**
+  Not a defect in what is drawn — nothing assumes an aspect ratio, and the
+  encoder never scales up — but the Discord source is not one shape. Most
+  images are 1600 on the long edge and end up height-limited, so they agree;
+  the ones that arrived smaller (a 1240×593 re-crop, a 1071×743) render at
+  their own size, and walking a filmstrip through one moves the caption bar and
+  the strip. A fixed stage height would stop it and would break the stated rule
+  that the bar stays attached to the image it describes, so it wants looking at
+  in the preview before it is worth a change.
 
 - **Keyboard navigation skips collapsed timeline entries.** Up/down between radio
   options passes over items inside collapsed `<details>` blocks. If fixing it

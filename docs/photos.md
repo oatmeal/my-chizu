@@ -187,6 +187,20 @@ of the design:
 - **Pan with the photos tab open**; the list re-filters to the viewport.
 - **Hover a row, then hover a pin.** Each should mark the other, and a row hover
   should also put that row's photo on its pin until the cursor leaves.
+- **Look at the author accent at real density.** Zoom out until the main base is
+  one pin: its bar should be split in the proportion the stack actually holds.
+  Zoom in and watch the split break apart into solid bars as the cluster does.
+  This is the part that was never going to be settled by a test — whether three
+  colours read at 56px over Minecraft terrain, beside a white border, a yellow
+  hover and a red badge.
+- **Toggle the author chips.** The pins should go with the list, the counts
+  should not move as you scrub or pan, and turning the last one off should say
+  「絞り込み中の」 rather than looking like an empty place.
+- **Walk a filmstrip through photos of different sizes.** The Discord source is
+  not one shape; the frame resizes between them. Whether that is worth fixing is
+  in [`plans/backlog.md`](plans/backlog.md).
+- **Scroll the timeline.** 57 of the overworld's rows are now photo-only, up
+  from 19. Read it and say whether the `(📷n)` counts still do their job.
 - **Tick 「このタブを閉じても写真を地図に表示し続けます」** and close the tab; the
   pins stay, and the permalink then reproduces them.
 - **Press 「リンクをコピー」 in the lightbox** and open the copied URL in a fresh
@@ -314,6 +328,79 @@ and in a 201-deep cluster that is almost never the row under the cursor, so the
 outline said *which stack* and left the visitor to guess which of the 201 images
 it stood for. Only photos listed in the pane can be named this way and the pane is
 already showing their thumbnails, so the swap is a cache hit.
+
+## Who took it
+
+The set is no longer one person's. `photos.json` carries a `by` on every entry
+and an `authors` registry naming the ids it uses; the schema and the rules a
+data repo has to keep are in
+[`data-repo.md`](data-repo.md#a-photo-layer). Where they are absent the viewer
+is exactly what it was, which is what makes any of this safe to have in a
+generic engine.
+
+**The credit is written out in the lightbox and under the pane row.** 「撮影:
+名前」, before the date, on **every** photo including the data repo owner's own.
+Naming other people only when it is not the owner's photo is a map that quietly
+claims the rest.
+
+### The accent is a bar along the foot of the pin
+
+Each author gets a colour, and it appears in three places that have to agree:
+the bar at the bottom of a pin, a matching bar under a pane row's thumbnail,
+and the dot on that author's filter chip. So the chips are the legend as well as
+the control.
+
+Four things about it were decided rather than fallen into:
+
+- **A bar, not a coloured border.** The pin's white border is what makes a
+  thumbnail legible against the map, and it is already spent twice — yellow on
+  hover, and the ring the pane's highlight draws. A fourth meaning on it would
+  cost the pin its readability to say something the pin can afford to say
+  quietly.
+- **Split in proportion, which is what makes it survive clustering.** A pin
+  standing for eleven photos by two people is two segments in the ratio it
+  actually holds. This was the open question — what a per-author colour does
+  when photos by different people merge — and the answer is that it never has
+  to pick a winner. The segments are ordered by author id, not by count, so one
+  person's colour is in the same place on every pin and the bar can be read
+  across the map.
+- **It counts only the photos the timeline says exist.** The pin already
+  refuses to wear a future photo and already splits its count as `3+2`; a bar
+  drawn over the whole stack would be the last part of the pin still claiming a
+  future photo is there. A wholly future cluster falls back to all of them,
+  because a bar of nothing is not an improvement on a bar dimmed with its pin.
+- **The colour is keyed on the id, never on a position in the registry.** A
+  layer lists only the authors it credits, so the end's registry is a subset of
+  the overworld's — and colouring by position would give one person two colours
+  depending on which dimension you were looking at, which is the exact question
+  the accent exists to answer.
+
+**One author means no colour anywhere.** The whole scheme switches itself on
+with the second contributor, so a data repo whose photos are all one person's
+looks precisely as it did before this existed, and an accent that is always the
+same accent is never drawn.
+
+### The filter is a set of chips in the pane
+
+One toggle per author, with a count, above the list. It narrows the **pins as
+well as** the list: a pane that disagrees with the map about which photos exist
+is two answers to one question, and the timeline already set the precedent that
+narrowing the set narrows both.
+
+- **The counts are over the whole dimension**, not the viewport or the timeline
+  selection, so the chips hold still while you scrub and pan. A filter whose
+  options rearrange themselves as you use the map is one you cannot aim.
+- **Everybody on is stored as no filter at all** (`null`, not a full set). The
+  untouched case then costs nothing, and an incoming `ph` permalink can never
+  land on a photo the filter is hiding.
+- **Turning the last author off shows nothing**, and should: the alternative is
+  a set of checkboxes that silently disagrees with itself. The status line says
+  「絞り込み中の」 so an empty list is not misread as an empty place.
+- **It does not ride the hash.** A filter is a way of reading the map for a
+  moment, not a state you send somebody — and a permalink that arrives filtered
+  is a permalink that can arrive pointing at nothing. If it ever should
+  persist, it is a `viewState` field and a `buildPermalinkUrl` change, not a
+  local edit here.
 
 ## The lightbox
 

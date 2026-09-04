@@ -228,6 +228,7 @@ details {
    that makes a map of 280 screenshots readable at a glance. */
 .photo-pin img {
   display: block;
+  box-sizing: border-box;
   width: 56px;
   height: 56px;
   object-fit: cover;
@@ -235,6 +236,26 @@ details {
   border-radius: 6px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
   background-color: #444;
+}
+/* Leaflet ships `.leaflet-container .leaflet-marker-pane img { width: auto }`,
+   which is two classes deep and outranks the one-class rule above. So the width
+   there was silently dropped for as long as the pin existed: it took the height
+   and then whatever width the thumbnail's aspect asked for -- about 100x56 for
+   a 16:9 screenshot, ragged across a set with 43 distinct aspect ratios,
+   `object-fit: cover` cropping nothing, the whole thing anchored as though it
+   were 56 wide so it hung right of the place it marks, and the accent
+   positioned to a box the photo had outgrown.
+
+   This rule wins the fight, and it carries *only* the properties Leaflet
+   contests. Restating the whole pin here instead would outrank the state rules
+   below -- the hover colour and the pane's highlight ring are one class deep,
+   written to beat a one-class base -- and take the highlight off the map, which
+   is exactly what happened when it was first written that way. Keep the fight
+   as narrow as the fight actually is. */
+.leaflet-marker-icon.photo-pin img {
+  box-sizing: border-box;
+  width: 56px;
+  height: 56px;
 }
 .photo-pin {
   cursor: pointer;
@@ -244,9 +265,11 @@ details {
 }
 /* In fill mode a photo that postdates the selected date is shown but faded,
    the same way the timeline treats a tile it had to borrow from the future. The
-   author bar fades with it -- it describes the same photos. */
+   author dot fades with it -- it describes the same photo. The count badge does
+   not: it is the element that explains the fading, and a `3+2` nobody can read
+   explains nothing. */
 .photo-pin-dim img,
-.photo-pin-dim .photo-pin-authors {
+.photo-pin-dim .photo-pin-author-dot {
   opacity: 0.35;
 }
 /* Hovering the matching row in the photos pane. The ring matters less than the
@@ -258,27 +281,8 @@ details {
   opacity: 1;
   box-shadow: 0 0 0 3px rgba(255, 213, 74, 0.85), 0 2px 8px rgba(0, 0, 0, 0.6);
 }
-.photo-pin-highlight .photo-pin-authors {
+.photo-pin-highlight .photo-pin-author-dot {
   opacity: 1;
-}
-/* Who took the photos in this pin. A bar along the foot rather than a coloured
-   border: the border is white for contrast against the map and is already spent
-   twice, on the hover colour and on the pane's highlight ring. The segments are
-   in proportion, so a merged cluster shows its real mix instead of picking a
-   winner. */
-.photo-pin-authors {
-  position: absolute;
-  left: 2px;
-  right: 2px;
-  bottom: 2px;
-  height: 4px;
-  display: flex;
-  overflow: hidden;
-  border-radius: 0 0 4px 4px;
-  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.35);
-}
-.photo-pin-authors i {
-  display: block;
 }
 .photo-pin-count {
   position: absolute;
@@ -301,6 +305,34 @@ details {
   font-weight: normal;
   font-size: 0.62rem;
   opacity: 0.8;
+}
+/* Who took them, worn by the badge the eye already goes to. The fill is on the
+   rim and the core stays near-black, because the numeral has to survive
+   whichever hues a cluster holds -- white on a light accent is thin, and a data
+   repo picks its own colours. `padding-box` over `border-box` is what paints a
+   gradient as a rim; the white outline moves to a box-shadow, since the border
+   is now the rim itself. */
+.photo-pin-count-author {
+  background: linear-gradient(#14180f, #14180f) padding-box,
+    var(--author-fill) border-box;
+  border: 3px solid transparent;
+  box-shadow: 0 0 0 1px #fff;
+  min-width: 26px;
+  padding: 0 5px;
+  font-size: 0.7rem;
+  line-height: 16px;
+}
+/* A lone photo has no count and still has an author. Same colour, same corner,
+   so the map answers "whose" on every pin and not only on the stacks. */
+.photo-pin-author-dot {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
 #photo-lightbox {
@@ -495,8 +527,9 @@ details {
   border-radius: 4px;
   display: block;
 }
-/* The same bar the pin wears, in the same colour, so a row and its pin read as
-   one photo's two renderings. */
+/* The pin's colour, in the shape a list row wants: a bar along the foot of a
+   96px thumbnail, where the pin puts the same colour on its badge. The colour
+   is what ties a row to its pin; the shape follows what each one has room for. */
 .photos-item-author {
   position: absolute;
   left: 0;

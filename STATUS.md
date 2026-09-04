@@ -14,11 +14,11 @@ about `../llmr`'s working tree and are re-derivable at the bottom.
 
 | | state |
 |---|---|
-| **Viewer engine** | Complete for the current feature set. 17 test files, 346 tests, all passing. |
+| **Viewer engine** | Complete for the current feature set. 17 test files, 363 tests, all passing. |
 | **Photo layer** | **Live.** Layer, clustering, pins, pane, lightbox, permalinks and timeline filtering all shipped and reviewed against a live preview. |
-| **Photos by other people** | **Built, not yet looked at.** 137 of the 417 published photos are two other members'. Every photo carries a credit, each author an accent colour, and the pane a filter. [`docs/contributors.md`](docs/contributors.md), [`docs/photos.md`](docs/photos.md#who-took-it). |
+| **Photos by other people** | **Built, being looked at.** 137 of the 417 published photos are two other members'. Every photo carries a credit, each author an accent colour, and the pane a filter; the site says the chip order and the colours it wants (`photos.authorOrder` / `authorColors` in `site.json`). The accent now rides the pin's **count badge** — a near-black core with the authorship on its rim, and a dot where a lone photo has no count — after the bar along the foot lost a nine-way comparison at real density. [`docs/contributors.md`](docs/contributors.md), [`docs/photos.md`](docs/photos.md#who-took-it). |
 | **Photo OCR** | **Not started.** [`docs/plans/photos-ocr.md`](docs/plans/photos-ocr.md) — the 214 screenshots with no filename coordinate, plus `time` and a real `y` for the rest. |
-| **Next** | **Look at the credit work in a preview** — the accent at real pin density, and a timeline that now has 57 photo-only rows. Then photo OCR. |
+| **Next** | **Look at the badge at real pin density**, and at a timeline that now has 57 photo-only rows. Two pin bugs were found and fixed on the way here: the pin had never been square (Leaflet's `width: auto` for marker images outranked its own rule, so it drew at each thumbnail's aspect, hung right of its anchor and overlapped its neighbours), which is also why the old bar looked half-width and the badge looked adrift. Then photo OCR. |
 
 ## The engine
 

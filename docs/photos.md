@@ -188,11 +188,11 @@ of the design:
 - **Hover a row, then hover a pin.** Each should mark the other, and a row hover
   should also put that row's photo on its pin until the cursor leaves.
 - **Look at the author accent at real density.** Zoom out until the main base is
-  one pin: its bar should be split in the proportion the stack actually holds.
-  Zoom in and watch the split break apart into solid bars as the cluster does.
-  This is the part that was never going to be settled by a test — whether three
-  colours read at 56px over Minecraft terrain, beside a white border, a yellow
-  hover and a red badge.
+  one pin: its badge should be a wheel in the proportion the stack actually
+  holds. Zoom in and watch the wheel break apart into flat colours as the
+  cluster does, and the lone photos show their dots. This is the part that was
+  never going to be settled by a test — whether three colours read at 56px over
+  Minecraft terrain, beside a white border and a yellow hover.
 - **Toggle the author chips.** The pins should go with the list, the counts
   should not move as you scrub or pan, and turning the last one off should say
   「絞り込み中の」 rather than looking like an empty place.
@@ -257,6 +257,26 @@ wrong.** Because a pin is anchored on a real photo's position rather than on the
 cell centre, two lead photos either side of a cell edge can be a pixel apart. So
 the cell bounded the *average* density and nothing at all bounded the overlap, and
 the map looked cluttered at exactly the zooms where it should have been readable.
+
+**The pin is 56×56 because a stylesheet fight was won, not because CSS said so.**
+Leaflet ships `.leaflet-container .leaflet-marker-pane img { width: auto }`, which
+is two classes deep and outranks a plain `.photo-pin img`. So for as long as the
+pin's rule was one class deep the width was silently dropped: the pin took the
+height and then whatever width the thumbnail's aspect asked for — around 100×56
+for a 16:9 screenshot and a different width for each of the set's 43 aspect
+ratios — `object-fit: cover` cropped nothing, the pin hung to the right of the
+place it marks because `iconAnchor` still said 28, and the separation this
+section guarantees was guaranteed against 56px of ink that was really 100. Any
+rule that has to beat Leaflet's own needs its specificity, so
+`.leaflet-marker-icon.photo-pin img` sets the size and `box-sizing: border-box`
+keeps the border inside `iconSize`.
+
+**That override carries only the three properties Leaflet contests, and this is
+not tidiness.** Restating the whole pin at two classes deep also outranks the
+state rules — `.photo-pin:hover img` and `.photo-pin-highlight img` are one
+class deep, written to beat a one-class base — and the first version of the fix
+did exactly that, taking the pane's highlight ring off the map. A rule written
+to win a specificity fight should be no wider than the fight.
 
 `clusterPhotos` sweeps the cells in a fixed order — north to south, then west to
 east — and a cell joins a neighbouring cluster whose anchor is nearer than one
@@ -343,42 +363,74 @@ generic engine.
 Naming other people only when it is not the owner's photo is a map that quietly
 claims the rest.
 
-### The accent is a bar along the foot of the pin
+### The accent is the count badge
 
 Each author gets a colour, and it appears in three places that have to agree:
-the bar at the bottom of a pin, a matching bar under a pane row's thumbnail,
-and the dot on that author's filter chip. So the chips are the legend as well as
-the control.
+the rim of a pin's count badge, a bar under a pane row's thumbnail, and the dot
+on that author's filter chip. So the chips are the legend as well as the
+control.
 
-Four things about it were decided rather than fallen into:
+**It was a bar along the foot of the pin first, and the bar was wrong twice
+over.** It was wrong by accident, because Leaflet's own `width: auto` for marker
+images had beaten the pin's width for as long as the pin existed and the bar was
+covering 47% of a photo that was nearly twice the width it was written as — the
+account of that is under [Clustering](#clustering). And it was wrong on purpose:
+even at full width, 4px along one edge is legible only once you have decided to
+look at a particular pin, while the count badge is the thing the eye finds
+first. Nine treatments were drawn at real size on real tiles before this was
+settled; the badge won on the plainest ground, which is that it is where people
+already look.
 
-- **A bar, not a coloured border.** The pin's white border is what makes a
-  thumbnail legible against the map, and it is already spent twice — yellow on
-  hover, and the ring the pane's highlight draws. A fourth meaning on it would
-  cost the pin its readability to say something the pin can afford to say
-  quietly.
+Five things about it were decided rather than fallen into:
+
+- **The colour is on the rim, over a near-black core.** The numeral has to stay
+  readable over whichever hues a cluster holds, and white on a light accent is
+  thin — `#43c59e` was the case that decided it. A rim also leaves the wheel
+  intact, so the badge can be a proportion and a number at once. It is
+  `linear-gradient(…) padding-box, var(--author-fill) border-box`: a gradient
+  border with a solid core, drawn with the box the badge already had.
+- **A lone photo gets a plain dot in the badge's place.** Four in five pins hold
+  one photographer and most of those hold one photo, so a scheme that only
+  spoke on stacks would say nothing on most of the map. The dot is the one job
+  the bar did that the count cannot.
 - **Split in proportion, which is what makes it survive clustering.** A pin
-  standing for eleven photos by two people is two segments in the ratio it
-  actually holds. This was the open question — what a per-author colour does
-  when photos by different people merge — and the answer is that it never has
-  to pick a winner. The segments are ordered by author id, not by count, so one
-  person's colour is in the same place on every pin and the bar can be read
-  across the map.
+  standing for eleven photos by two people is a wheel in the ratio it actually
+  holds. This was the open question — what a per-author colour does when photos
+  by different people merge — and the answer is that it never has to pick a
+  winner. The wedges run in the pane's chip order — `authorOrder` where the site
+  states one, author id where it does not — and never by count, and they start
+  at twelve o'clock, so a person's wedge begins in the same place on every pin
+  and the chips are the legend for it.
 - **It counts only the photos the timeline says exist.** The pin already
-  refuses to wear a future photo and already splits its count as `3+2`; a bar
+  refuses to wear a future photo and already splits its count as `3+2`; a wheel
   drawn over the whole stack would be the last part of the pin still claiming a
   future photo is there. A wholly future cluster falls back to all of them,
-  because a bar of nothing is not an improvement on a bar dimmed with its pin.
+  because a wheel of nothing is not an improvement on one dimmed with its pin.
+  The badge itself does not dim, because it is the element that *explains* the
+  dimming; the lone photo's dot does, because it describes that one photo.
+- **Red survives where there is nobody to tell apart.** A data repo whose photos
+  are all one person's, and a `by` that resolves to nobody, get the plain red
+  badge the pin has always had. The accent switches itself on with the second
+  contributor, here as everywhere else.
 - **The colour is keyed on the id, never on a position in the registry.** A
   layer lists only the authors it credits, so the end's registry is a subset of
   the overworld's — and colouring by position would give one person two colours
   depending on which dimension you were looking at, which is the exact question
-  the accent exists to answer.
+  the accent exists to answer. `site.json`'s `photos.authorColors` names a
+  colour for the ids it wants to choose for, because *which* of six hues
+  somebody gets is a look, and the palette settles it by arithmetic on an id
+  handed out in the order people gave permission. An override does not switch
+  the accent on: the rule below still rules.
 
 **One author means no colour anywhere.** The whole scheme switches itself on
 with the second contributor, so a data repo whose photos are all one person's
 looks precisely as it did before this existed, and an accent that is always the
 same accent is never drawn.
+
+**The pane row keeps its bar**, because the colour is what ties a row to its
+pin and the shape is what each of them has room for: a 96px thumbnail in a list
+reads a bar along its foot cleanly, where a pin needed the colour on the one
+element the eye was already going to.
 
 ### The filter is a set of chips in the pane
 
@@ -396,7 +448,9 @@ narrowing the set narrows both.
   author with nothing in view keeps their chip, reading `0`, since otherwise
   turning somebody off removes the control that turns them back on. The chip's
   tooltip carries the dimension-wide total, which is the fact the ordering is
-  made of.
+  made of — where the ordering is made of a fact at all: a site that states
+  `photos.authorOrder` gets exactly the order it asked for, and share of the
+  dimension is left to break the tie among everybody it did not name.
 - **The counts ignore the filter itself.** "How many of theirs are here" does
   not change because you have just hidden them, and a chip that zeroed itself
   on being switched off would say it had.

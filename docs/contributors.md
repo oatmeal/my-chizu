@@ -222,10 +222,10 @@ filter, and with it the accent that makes a filter legible. The full account is
   `authorColor`, `authorCounts` and `filterByAuthor`, and `clusterPhotos` now
   reports each cluster's author split so a pin can draw one.
 - **`lib/setupPhotos.js`** — reads `authors` off the layer JSON and merges it
-  across layers, threads it to the caption, the pane row, the pin's accent bar
+  across layers, threads it to the caption, the pane row, the pin's count badge
   and the filter chips.
 - **`static/`** — a `#photos-authors` container in the pane, and the CSS for
-  the bar and the chips.
+  the badge, the row bar and the chips.
 - **`llmr/site.json`** — the About pane is the natural place to thank
   contributors. That is `aboutHtml`, site-owned, so it is a hand edit in the
   data repo, not engine work. **Still to do.**
@@ -281,10 +281,10 @@ Two are answered, two are for the preview, one stands.
   the preview, and at whether the per-date `(📷n)` counts still carry the
   weight [`photos.md`](photos.md) gives them now they are on 181 rows.
 - **Does a per-author colour survive clustering?** Answered by building it —
-  the bar is split in proportion, so a merged pin shows its real mix instead of
-  picking a winner. See
-  [`photos.md`](photos.md#the-accent-is-a-bar-along-the-foot-of-the-pin). Worth
-  a look at real density before it is called settled.
+  the count badge's rim is split in proportion, so a merged pin shows its real
+  mix instead of picking a winner. It was a bar along the foot of the pin until
+  a look at real density said the bar was too quiet for the thing it had to say;
+  see [`photos.md`](photos.md#the-accent-is-the-count-badge).
 - **Other members' in-game nametags are visible in many of these photos.** The
   photographer has consented; the people in frame have not been asked. Those
   names are already public in the streams the map exists to accompany, so the

@@ -103,7 +103,9 @@ a tile, which the site build discovers by globbing filenames. See
   "aboutHtml": "<p>HTML content for the info sidebar pane</p>",
   "photos": {
     "baseUrl": "photos/",
-    "thumbUrl": "photos/thumb/"
+    "thumbUrl": "photos/thumb/",
+    "authorOrder": [3, 1, 2],
+    "authorColors": { "2": "#43c59e" }
   },
   "vods": {
     "playlists": ["https://www.youtube.com/playlist?list=..."],
@@ -116,11 +118,29 @@ a tile, which the site build discovers by globbing filenames. See
 }
 ```
 
-`photos` says where the photo layer loads its images from. Both URLs are relative
-to the deploy root by default and are substituted into `index.html` as
+`photos` says where the photo layer loads its images from, and how the site
+wants its photographers shown. `baseUrl` and `thumbUrl` are relative to the
+deploy root by default and are substituted into `index.html` as
 `window.photosConfig`, so moving the set to another origin is a config edit and a
 file move rather than a code change. `lib/photos.test.js` pins that an absolute
 base passes through untouched.
+
+`authorOrder` and `authorColors` are both optional and both keyed on the same
+ids as the layer file's `authors`:
+
+- **`authorOrder`** is the order the pane's filter chips go in, and with them the
+  wedges of a pin's count badge. Anyone it leaves out keeps the default — share
+  of the dimension for the chips, id for the wedges — so a partial list means
+  "these first, then carry on".
+- **`authorColors`** overrides the built-in palette for the ids it names. Which
+  of six hues somebody gets is otherwise decided by arithmetic on an id handed
+  out in the order people gave permission, which is no basis for a colour.
+  It does not switch the accent on: a map with one contributor still draws none.
+
+They live here rather than beside the names in the layer file because neither is
+a fact about a person — `authors` is rewritten wholesale by the producing repo
+from its consent record, and these are the site owner's choices about their own
+pane, which survive that rewrite.
 
 `vods` is read **only** by `scripts/sync-vods.mjs`; the build ignores it. See
 [`vods.md`](vods.md).

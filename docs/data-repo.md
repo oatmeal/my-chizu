@@ -165,6 +165,12 @@ dependencies, and the bundled `map.js`.
 - **Each layer's `kind`**, copied into that metadata. The viewer has to tell a
   photo layer from a marker layer *before* it fetches either — to keep it out of
   the layers panel, and out of the nether's show-everything default.
+- **`photoAuthors`** — the union of every layer file's `authors`, across *all*
+  dimensions, written identically onto each one. A layer names only the authors
+  it credits, but "is more than one person on this map" decides whether accent
+  colours exist at all, and answered per dimension that question changes its
+  answer as the visitor travels. Absent where no layer names an author, so a
+  data repo without the field builds exactly as it did before.
 - **Per-date tile replacement caches**, `data/[dim]/[date]-[mode].json`.
 
 It then copies `tiles/` and `photos/` into `deploy/`. **A layer's photos extend

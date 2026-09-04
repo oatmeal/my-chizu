@@ -427,6 +427,23 @@ with the second contributor, so a data repo whose photos are all one person's
 looks precisely as it did before this existed, and an accent that is always the
 same accent is never drawn.
 
+**And "one author" is a question about the site, not about a dimension.** It has
+to be, or the answer changes as the visitor travels. Each layer file names only
+the authors it credits, so a dimension one person happens to own says "one
+author" on its own — and would drop every accent, then grow them back once the
+visitor had been somewhere else and returned and the merged roster had quietly
+got bigger behind them. Same photos, same dimension, different map depending on
+the route taken to it.
+
+So `build-data.mjs` unions every layer file's `authors` across every dimension
+and writes the result into each dimension's metadata as `photoAuthors`
+(`collectPhotoAuthors`). The viewer takes that as its roster before any layer
+arrives — the same reason `kind` is hoisted there, and the same mechanism. The
+per-layer merge stays underneath it so a data repo built by an older engine, or
+by hand, still works. The gate itself never changed: it still asks whether the
+roster it holds names more than one person. What changed is that the roster is
+now the same everywhere.
+
 **The pane row keeps its bar**, because the colour is what ties a row to its
 pin and the shape is what each of them has room for: a 96px thumbnail in a list
 reads a bar along its foot cleanly, where a pin needed the colour on the one

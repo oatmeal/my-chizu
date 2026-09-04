@@ -79,6 +79,23 @@ describe("build", () => {
       expect(ow.fileDates["4/0/0"]).toEqual(["20230101", "20230201"]);
     });
 
+    it("hoists every dimension's photo authors onto each dimension", () => {
+      // The fixture credits pupu in the overworld and 鹿 in the end, and each
+      // layer file names only its own. The viewer decides whether accent
+      // colours exist at all from "is more than one person on this map", so it
+      // has to be handed the union -- otherwise the answer would depend on
+      // which dimensions the visitor had already loaded.
+      for (const dim of ["overworld", "nether", "end"]) {
+        const meta = JSON.parse(
+          readFileSync(join(deployDir, `data/${dim}.json`), "utf-8")
+        );
+        expect(meta.photoAuthors).toEqual({
+          1: { name: "pupu" },
+          2: { name: "鹿" },
+        });
+      }
+    });
+
     it("writes layer JSON files", () => {
       const spawn = JSON.parse(
         readFileSync(join(deployDir, "data/overworld/spawn.json"), "utf-8")

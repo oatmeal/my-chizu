@@ -94,6 +94,44 @@ await Promise.all([minifyDatesJson(), minifyVodsJson()]);
 
 const layerIds = {};
 
+/**
+ * Every photo author the site credits, merged across all dimensions.
+ *
+ * A layer file lists only the authors it credits, so the overworld's block and
+ * the end's are different subsets of the same people. The viewer needs the
+ * whole cast rather than a subset, because one thing it asks is "is more than
+ * one person on this map" -- the switch that decides whether accent colours
+ * exist at all. Answered from whatever has been fetched so far, that question
+ * changes its answer as you travel: a dimension with a single contributor
+ * would draw no accents until you visited another one and came back, and then
+ * draw them. Same photos, different map, depending on where you had been.
+ *
+ * So it is settled here, over every layer file the build can see, and handed
+ * to the viewer with the dimension metadata -- for the same reason `kind` is:
+ * it has to be known before a layer file is fetched.
+ *
+ * This does not move where the names are authored. They are still written in
+ * the publishing repo's consent record and rewritten into each `photos.json`
+ * wholesale; this is a union of those, derived, never a second place to edit.
+ *
+ * @returns {Object<string, {name: string}>|undefined} - undefined where no
+ *   layer names an author, so a data repo without the field builds as before.
+ */
+async function collectPhotoAuthors() {
+  const authors = {};
+  for (const dim of [DIM_OVERWORLD, DIM_NETHER, DIM_END]) {
+    for (const fn of await fg(
+      join(dataDir, "data", DIM_NAMES[dim], "*.json").replaceAll("\\", "/")
+    )) {
+      const layer = JSON.parse(await fsPromises.readFile(fn, "utf-8"));
+      Object.assign(authors, layer.authors);
+    }
+  }
+  return Object.keys(authors).length ? authors : undefined;
+}
+
+const photoAuthors = await collectPhotoAuthors();
+
 for (const dim of [DIM_OVERWORLD, DIM_NETHER, DIM_END]) {
   const dimension = DIM_NAMES[dim];
   // Minecraft coords of upper right-hand corner of the zoom level 4 tile designated as [0, 0]
@@ -349,6 +387,8 @@ for (const dim of [DIM_OVERWORLD, DIM_NETHER, DIM_END]) {
     dates: sortedDates,
     fileDates: timeFileDict,
     photoDates,
+    // The whole cast, not this dimension's subset: see `collectPhotoAuthors`.
+    ...(photoAuthors ? { photoAuthors } : {}),
     layers: sortedLayers,
     tilePath,
     errorTileUrl,

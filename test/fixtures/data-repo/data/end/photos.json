@@ -1,0 +1,10 @@
+{
+  "id": 202,
+  "name": "写真",
+  "dimension": "end",
+  "kind": "photos",
+  "authors": { "2": { "name": "鹿" } },
+  "photos": [
+    { "f": "20230101/b", "date": "20230101", "by": 2, "pos": [0, 64, 0] }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "id": 102,
+  "name": "写真",
+  "dimension": "overworld",
+  "kind": "photos",
+  "authors": { "1": { "name": "pupu" } },
+  "photos": [
+    { "f": "20230101/a", "date": "20230101", "by": 1, "pos": [0, 64, 0] }
+  ]
+}

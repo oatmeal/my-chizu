@@ -472,6 +472,12 @@ details {
 .photos-author-count {
   color: #777;
 }
+/* Nobody of theirs in view. The chip stays -- it is the control that turns
+   them back on -- but it stops competing with the ones that have something
+   behind them. */
+.photos-author-empty .photos-author-count {
+  color: #aaa;
+}
 
 .photos-item {
   width: 96px;

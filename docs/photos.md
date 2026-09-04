@@ -387,9 +387,19 @@ well as** the list: a pane that disagrees with the map about which photos exist
 is two answers to one question, and the timeline already set the precedent that
 narrowing the set narrows both.
 
-- **The counts are over the whole dimension**, not the viewport or the timeline
-  selection, so the chips hold still while you scrub and pan. A filter whose
-  options rearrange themselves as you use the map is one you cannot aim.
+- **The count follows the view; the order does not.** A chip counting the whole
+  dimension sits directly above a sentence counting the viewport, and one of
+  them is answering a question nobody asked — so the number is of what is on
+  screen, exactly as the sentence is. The *order* is fixed by each author's
+  share of the whole dimension, because chips that resort themselves as you pan
+  are a filter you cannot aim: the target moves out from under the cursor. An
+  author with nothing in view keeps their chip, reading `0`, since otherwise
+  turning somebody off removes the control that turns them back on. The chip's
+  tooltip carries the dimension-wide total, which is the fact the ordering is
+  made of.
+- **The counts ignore the filter itself.** "How many of theirs are here" does
+  not change because you have just hidden them, and a chip that zeroed itself
+  on being switched off would say it had.
 - **Everybody on is stored as no filter at all** (`null`, not a full set). The
   untouched case then costs nothing, and an incoming `ph` permalink can never
   land on a photo the filter is hiding.
